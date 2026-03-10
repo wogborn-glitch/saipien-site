@@ -391,10 +391,64 @@
 
     /* ── MOBILE ──────────────────────────────────────────── */
     @media (max-width: 600px) {
-      nav { padding: 20px 24px; }
-      .nav-links { display: none; }
-      .hero, .pillars, .contact { padding-left: 24px; padding-right: 24px; }
-      footer { flex-direction: column; gap: 8px; text-align: center; }
+      nav { padding: 16px 20px; }
+      .nav-logo { font-size: 22px; letter-spacing: 4px; }
+      .nav-links { gap: 20px; }
+      .nav-links a { font-size: 11px; letter-spacing: 1px; }
+
+      .hero { padding: 48px 20px 40px; }
+      .pillars, .contact { padding-left: 20px; padding-right: 20px; }
+      .pillars { padding-top: 48px; padding-bottom: 48px; }
+
+      .title-glow,
+      .hero-title {
+        font-size: clamp(48px, 14vw, 72px);
+        letter-spacing: 4px;
+      }
+      .title-wrap { margin-bottom: 24px; }
+
+      .hero-subtitle {
+        font-size: 13px;
+        letter-spacing: 2px;
+        padding-left: 14px;
+        margin-bottom: 32px;
+      }
+
+      .contact-prompt {
+        font-size: 28px;
+        letter-spacing: 2px;
+      }
+
+      .contact-email {
+        font-size: 15px;
+        letter-spacing: 1px;
+      }
+
+      .section-label { margin-bottom: 32px; }
+
+      .pillars-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .pillar { padding: 24px; }
+      .pillar-num { font-size: 36px; }
+
+      footer {
+        padding: 20px;
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    /* ── VERY SMALL SCREENS ─────────────────────────────── */
+    @media (max-width: 380px) {
+      .title-glow,
+      .hero-title {
+        font-size: 42px;
+        letter-spacing: 2px;
+      }
+      .contact-prompt { font-size: 24px; }
     }
   </style>
 </head>
