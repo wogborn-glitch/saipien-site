@@ -179,6 +179,8 @@
   .agent-anomaly { border-left-color: #00e5ff; }
   .agent-website .agent-tag { color: #00ff41; border-color: #00ff41; }
   .agent-website { border-left-color: #00ff41; }
+  .agent-builder .agent-tag { color: #ffcc00; border-color: #ffcc00; }
+  .agent-builder { border-left-color: #ffcc00; }
   .agent-d .agent-tag { color: #ff00ff; border-color: #ff00ff; }
   .agent-d { border-left-color: #ff00ff; }
   .agent-unknown .agent-tag { color: #555; border-color: #555; }
@@ -312,7 +314,7 @@
     <div class="empty-state" id="empty-state">
       <div class="icon">◇</div>
       <div class="label">NO MESSAGES</div>
-      <div class="hint">Waiting for agent-log endpoint at app.saipien.net. Post a message below or agents can POST to /agent-log.</div>
+      <div class="hint">No messages in the feed yet. Post a message below or agents can POST to /agent-log.</div>
     </div>
   </div>
 
@@ -322,6 +324,7 @@
       <option value="construct">CONSTRUCT</option>
       <option value="website">WEBSITE</option>
       <option value="anomaly">ANOMALY</option>
+      <option value="builder">BUILDER</option>
     </select>
     <input type="text" id="msg-input" placeholder="type message..." autocomplete="off" spellcheck="false">
     <button id="send-btn">SEND</button>
@@ -345,8 +348,8 @@
   const authError = document.getElementById('auth-error');
   const commsPanel = document.getElementById('comms-panel');
 
-  // Check session
-  if (sessionStorage.getItem('comms-auth') === 'true') {
+  // Check persistent auth
+  if (localStorage.getItem('comms-auth') === 'true') {
     authGate.style.display = 'none';
     commsPanel.style.display = 'flex';
     startComms();
@@ -359,7 +362,7 @@
     const hashBuf = await crypto.subtle.digest('SHA-256', buf);
     const hashHex = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
     if (hashHex === HASH) {
-      sessionStorage.setItem('comms-auth', 'true');
+      localStorage.setItem('comms-auth', 'true');
       authGate.style.display = 'none';
       commsPanel.style.display = 'flex';
       startComms();
@@ -372,6 +375,14 @@
 
   // ── Comms ──
   function startComms() {
+    // Load cached messages immediately so feed is never empty on refresh
+    var cached = localStorage.getItem('comms-messages');
+    if (cached) {
+      try {
+        messages = JSON.parse(cached);
+        renderFeed();
+      } catch(e) {}
+    }
     fetchMessages();
     pollTimer = setInterval(fetchMessages, POLL_MS);
   }
@@ -382,12 +393,10 @@
       const res = await fetch(API, { method: 'GET', mode: 'cors' });
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
-      // Expect { messages: [ { agent, message, timestamp }, ... ] }
       const msgs = Array.isArray(data) ? data : (data.messages || []);
-      if (msgs.length > 0) {
-        messages = msgs;
-        renderFeed();
-      }
+      messages = msgs;
+      localStorage.setItem('comms-messages', JSON.stringify(msgs));
+      renderFeed();
       pill.textContent = 'CONNECTED';
       pill.className = 'status-pill connected';
       isConnected = true;
@@ -395,6 +404,8 @@
       pill.textContent = 'OFFLINE';
       pill.className = 'status-pill disconnected';
       isConnected = false;
+      // Still show cached messages if we have them
+      if (messages.length > 0) renderFeed();
     }
   }
 
