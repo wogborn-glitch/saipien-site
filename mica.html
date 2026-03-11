@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>MICA — Defense Contract Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+:root{
+  --bg:#080c12;--bg-panel:rgba(10,18,28,0.92);--bg-card:rgba(15,25,38,0.9);
+  --orange:#e8731e;--orange-glow:#ff8c2a;--orange-dim:rgba(232,115,30,0.12);--orange-ring:rgba(232,115,30,0.35);
+  --cyan:#0ef0e8;--cyan-glow:#00fff2;--cyan-dim:rgba(14,240,232,0.08);--cyan-muted:rgba(14,240,232,0.4);
+  --red:#ff3040;--yellow:#ffd600;--green:#00e87e;--purple:#8b5cf6;
+  --text:#c8d6e0;--text-dim:#5a7080;--text-bright:#eaf2f8;
+  --border:rgba(14,240,232,0.12);--border-orange:rgba(232,115,30,0.25);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:10000;}
+
+.corner{position:fixed;width:20px;height:20px;z-index:9999;}
+.corner-tl{top:6px;left:6px;border-top:2px solid var(--cyan-muted);border-left:2px solid var(--cyan-muted);}
+.corner-tr{top:6px;right:6px;border-top:2px solid var(--cyan-muted);border-right:2px solid var(--cyan-muted);}
+.corner-bl{bottom:6px;left:6px;border-bottom:2px solid var(--orange-ring);border-left:2px solid var(--orange-ring);}
+.corner-br{bottom:6px;right:6px;border-bottom:2px solid var(--orange-ring);border-right:2px solid var(--orange-ring);}
+
+.app{display:flex;flex-direction:column;height:100vh;}
+
+/* ── HEADER ── */
+.header{height:50px;display:flex;align-items:center;padding:0 16px;background:linear-gradient(180deg,rgba(14,240,232,0.04) 0%,var(--bg) 100%);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100;gap:4px;}
+.logo{font-family:'Orbitron',sans-serif;font-weight:800;font-size:18px;letter-spacing:5px;color:var(--orange);text-shadow:0 0 20px rgba(232,115,30,0.4);white-space:nowrap;}
+.logo-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan-muted);letter-spacing:2px;margin-left:6px;white-space:nowrap;}
+.nav-center{display:flex;gap:2px;margin:0 12px;}
+.nav-item{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:6px 14px;color:var(--text-dim);cursor:pointer;position:relative;transition:all 0.3s;border:1px solid transparent;background:none;}
+.nav-item:hover{color:var(--cyan);}
+.nav-item.active{color:var(--orange);border-color:var(--border-orange);background:var(--orange-dim);}
+.nav-item.active::after{content:'';position:absolute;bottom:-1px;left:20%;right:20%;height:2px;background:var(--orange);box-shadow:0 0 8px var(--orange-glow);}
+.search-wrap{flex:1;max-width:400px;position:relative;}
+.search-wrap input{width:100%;padding:7px 10px 7px 30px;background:rgba(0,0,0,0.5);border:1px solid var(--border);color:var(--text-bright);font-family:'Rajdhani',sans-serif;font-size:13px;border-radius:3px;outline:none;transition:border-color 0.3s;}
+.search-wrap input:focus{border-color:var(--cyan);}
+.search-wrap input::placeholder{color:var(--text-dim);}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--cyan-muted);font-size:12px;pointer-events:none;}
+.search-results{position:absolute;top:100%;left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-top:none;max-height:300px;overflow-y:auto;display:none;z-index:500;}
+.search-results.show{display:block;}
+.sr-item{padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.03);}
+.sr-item:hover{background:var(--cyan-dim);}
+.sr-tag{font-family:'Share Tech Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:0.5px;}
+.topstats{display:flex;gap:16px;margin-left:auto;}
+.ts{text-align:right;line-height:1.1;}
+.ts-val{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;color:var(--cyan);text-shadow:0 0 10px rgba(14,240,232,0.3);}
+.ts-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;}
+
+/* ── MAIN ── */
+.main-area{display:flex;flex:1;overflow:hidden;position:relative;}
+
+/* ── LAYER PANEL ── */
+.layer-panel{width:250px;min-width:250px;background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:50;overflow-y:auto;flex-shrink:0;}
+.layer-panel.hidden{display:none;}
+.lp-hdr{font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;color:var(--orange);padding:12px 14px 8px;border-bottom:1px solid var(--border);}
+.lp-sec{padding:8px 12px 3px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--cyan-muted);text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.03);}
+.lt{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;transition:background 0.15s;border-left:2px solid transparent;}
+.lt:hover{background:rgba(14,240,232,0.04);}
+.lt.on{border-left-color:var(--cyan);background:var(--cyan-dim);}
+.lt-ck{width:14px;height:14px;border:1px solid var(--text-dim);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:all 0.2s;}
+.lt.on .lt-ck{border-color:var(--cyan);background:rgba(14,240,232,0.15);color:var(--cyan);}
+.lt-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.lt-name{font-size:12px;font-weight:500;flex:1;}
+.lt-ct{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);}
+
+/* Legend */
+.legend{padding:8px 12px;border-top:1px solid var(--border);}
+.legend-title{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;}
+.legend-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px;}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── CONTENT VIEWS ── */
+.content{flex:1;position:relative;overflow:hidden;}
+.view{width:100%;height:100%;display:none;position:absolute;inset:0;z-index:1;}
+.view.active{display:block;}
+
+/* Map */
+#map{width:100%;height:100%;background:#080c12;}
+.leaflet-container{background:#080c12;font-family:'Rajdhani',sans-serif;}
+.leaflet-control-zoom a{background:var(--bg-panel)!important;color:var(--cyan)!important;border-color:var(--border)!important;}
+/* Tooltips */
+.tip{background:var(--bg-panel)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:3px!important;font-family:'Rajdhani',sans-serif!important;font-size:12px!important;padding:4px 10px!important;box-shadow:0 4px 12px rgba(0,0,0,0.4)!important;}
+.tip .leaflet-tooltip-left::before{border-left-color:var(--bg-panel)!important;}
+.tip .leaflet-tooltip-right::before{border-right-color:var(--bg-panel)!important;}
+
+.leaflet-popup-content-wrapper{background:var(--bg-panel)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:3px!important;box-shadow:0 10px 30px rgba(0,0,0,0.5)!important;}
+.leaflet-popup-content{margin:10px 14px!important;font-family:'Rajdhani',sans-serif!important;font-size:13px!important;}
+.leaflet-popup-tip{background:var(--bg-panel)!important;border:1px solid var(--border)!important;}
+.popup-title{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--orange);letter-spacing:1px;margin-bottom:4px;}
+.popup-stat{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);}
+.popup-link{color:var(--cyan);cursor:pointer;text-decoration:underline;font-size:12px;display:block;margin-top:3px;}
+
+/* Radar */
+#graph-svg{width:100%;height:100%;background:radial-gradient(ellipse at center,rgba(232,115,30,0.03) 0%,transparent 60%);}
+.graph-link{stroke-opacity:0.3;}
+.graph-node{cursor:pointer;}
+.graph-node text{font-family:'Share Tech Mono',monospace;font-size:9px;fill:var(--text-dim);pointer-events:none;}
+.graph-node:hover text{fill:var(--text-bright);}
+.radar-ring{fill:none;pointer-events:none;}
+.radar-crosshair{stroke:var(--orange-ring);stroke-width:0.5;opacity:0.15;}
+@keyframes sweepRotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* Ticker */
+.ticker-strip{position:absolute;bottom:0;left:0;right:0;padding:6px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.5);overflow:hidden;white-space:nowrap;z-index:20;}
+.ticker-inner{display:inline-block;animation:tickerScroll 45s linear infinite;}
+@keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ticker-item{display:inline-flex;align-items:center;gap:6px;margin-right:28px;font-size:11px;}
+.ticker-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:tPulse 2s infinite;}
+@keyframes tPulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.ticker-company{color:var(--cyan);font-weight:600;}
+.ticker-title{color:var(--text-dim);}
+.ticker-cmd{color:var(--orange);font-family:'Share Tech Mono',monospace;font-size:10px;}
+
+/* Tables */
+.table-container{padding:16px;overflow:auto;height:100%;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--bg-card);padding:10px 12px;text-align:left;font-family:'Orbitron',sans-serif;font-weight:500;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--orange);border-bottom:1px solid var(--border-orange);position:sticky;top:0;z-index:5;}
+td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.03);}
+tr{cursor:pointer;transition:background 0.1s;}
+tr:hover{background:rgba(14,240,232,0.03);}
+.conf-bar{display:flex;align-items:center;gap:6px;}
+.conf-track{width:60px;height:5px;background:rgba(255,255,255,0.05);border-radius:1px;overflow:hidden;}
+.conf-fill{height:100%;border-radius:1px;}
+.conf-val{font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:600;}
+.badge{display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;font-weight:600;font-family:'Share Tech Mono',monospace;}
+.badge-high{background:rgba(0,232,126,0.12);color:var(--green);}
+.badge-med{background:var(--orange-dim);color:var(--orange);}
+.badge-low{background:rgba(255,48,64,0.1);color:var(--red);}
+.badge-api{background:rgba(14,240,232,0.1);color:var(--cyan);}
+.badge-press{background:rgba(0,232,126,0.1);color:var(--green);}
+.badge-est{background:var(--orange-dim);color:var(--orange);}
+.badge-sa{background:rgba(139,92,246,0.15);color:var(--purple);font-size:9px;margin-right:3px;}
+
+/* Report */
+.report-container{padding:24px;overflow:auto;height:100%;max-width:900px;}
+.report-section{margin-bottom:28px;}
+.report-section h2{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;letter-spacing:2px;color:var(--orange);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border-orange);display:flex;align-items:center;gap:10px;}
+.report-section h2 .line{flex:1;height:1px;background:linear-gradient(90deg,var(--border-orange),transparent);}
+.rcard{background:var(--bg-card);border:1px solid rgba(255,255,255,0.03);border-radius:3px;padding:14px;margin-bottom:8px;}
+.rcard h4{font-size:14px;font-weight:600;margin-bottom:6px;}
+.rbar{height:6px;background:rgba(255,255,255,0.03);border-radius:1px;overflow:hidden;margin-top:6px;}
+.rbar-fill{height:100%;border-radius:1px;}
+.export-btn{padding:10px 24px;background:var(--orange);color:var(--bg);border:none;border-radius:3px;cursor:pointer;font-family:'Orbitron',sans-serif;font-weight:700;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:16px;}
+.export-btn:hover{background:var(--orange-glow);box-shadow:0 0 20px rgba(232,115,30,0.4);}
+
+/* ── DETAIL PANEL ── */
+.detail-panel{position:absolute;right:0;top:0;bottom:0;width:380px;background:var(--bg-panel);border-left:1px solid var(--border);z-index:1000;display:none;flex-direction:column;overflow:hidden;box-shadow:-10px 0 40px rgba(0,0,0,0.4);}
+.detail-panel.open{display:flex;}
+.dp-hdr{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
+.dp-type{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 8px;border-radius:2px;margin-bottom:4px;display:inline-block;}
+.dp-title{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;color:var(--orange);letter-spacing:1px;line-height:1.3;}
+.dp-sub{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.dp-close{background:none;border:1px solid var(--border);color:var(--text-dim);cursor:pointer;font-size:16px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;}
+.dp-close:hover{border-color:var(--red);color:var(--red);}
+.dp-body{flex:1;overflow-y:auto;padding:0;}
+.dp-section{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.dp-sec-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--cyan-muted);text-transform:uppercase;margin-bottom:8px;}
+.dp-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.dp-stat{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.04);border-radius:3px;padding:8px 10px;}
+.dp-stat-val{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:600;color:var(--cyan);line-height:1;}
+.dp-stat-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text-dim);letter-spacing:0.5px;margin-top:3px;text-transform:uppercase;}
+.dp-stat.full{grid-column:1/-1;}
+.dp-stat.warn .dp-stat-val{color:var(--yellow);}
+.dp-stat.danger .dp-stat-val{color:var(--red);}
+.dp-row{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;transition:color 0.15s;}
+.dp-row:hover{color:var(--cyan);}
+.dp-row-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dp-row-name{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dp-row-val{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);}
+.dp-bar-wrap{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:3px;overflow:hidden;}
+.dp-bar{height:100%;border-radius:3px;}
+.exp-badge{display:inline-block;padding:2px 6px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:10px;}
+.exp-green{background:rgba(0,232,126,0.15);color:var(--green);}
+.exp-yellow{background:rgba(255,214,0,0.15);color:var(--yellow);}
+.exp-orange{background:rgba(232,115,30,0.15);color:var(--orange);}
+.exp-red{background:rgba(255,48,64,0.15);color:var(--red);}
+
+/* Network graph modal */
+.ng-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:none;align-items:center;justify-content:center;}
+.ng-overlay.open{display:flex;}
+.ng-modal{width:720px;height:520px;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;position:relative;overflow:hidden;}
+.ng-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.ng-title{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--orange);letter-spacing:1px;}
+.ng-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;}
+.ng-close:hover{color:var(--red);}
+#netgraph-svg{width:100%;height:calc(100% - 44px);}
+
+/* Pulse */
+@keyframes pulse{0%{transform:scale(1);opacity:0.9;}50%{transform:scale(1.6);opacity:0.3;}100%{transform:scale(1);opacity:0.9;}}
+.hiring-pulse{animation:pulse 2s infinite;}
+
+/* Bottom bar */
+.bottom-bar{height:30px;display:flex;align-items:center;padding:0 16px;background:rgba(0,0,0,0.4);border-top:1px solid var(--border);gap:20px;flex-shrink:0;}
+.bi{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.5px;display:flex;align-items:center;gap:5px;}
+.bi-dot{width:6px;height:6px;border-radius:50%;}
+.bi-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:tPulse 1.5s infinite;}
+.bi-dot.warn{background:var(--orange);}
+.bi-spacer{flex:1;}
+.bi-time{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--orange);letter-spacing:2px;}
+
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+/* ── AUTH GATE ── */
+#auth-gate{position:fixed;inset:0;z-index:99999;background:#080c12;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+#auth-gate.hidden{display:none;}
+.auth-box{text-align:center;padding:40px;border:1px solid rgba(14,240,232,0.15);background:rgba(10,18,28,0.95);max-width:380px;width:90%;}
+.auth-box .auth-logo{font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:#e8731e;letter-spacing:6px;margin-bottom:4px;}
+.auth-box .auth-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(14,240,232,0.5);letter-spacing:3px;margin-bottom:30px;}
+.auth-box .auth-label{font-family:'Rajdhani',sans-serif;font-size:12px;color:#5a7080;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.auth-box input{width:100%;padding:10px 14px;background:rgba(14,240,232,0.04);border:1px solid rgba(14,240,232,0.2);color:#eaf2f8;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:1px;outline:none;transition:border-color 0.3s;}
+.auth-box input:focus{border-color:rgba(14,240,232,0.5);}
+.auth-box button{width:100%;margin-top:14px;padding:10px;background:rgba(232,115,30,0.15);border:1px solid rgba(232,115,30,0.4);color:#e8731e;font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all 0.3s;}
+.auth-box button:hover{background:rgba(232,115,30,0.25);border-color:#e8731e;}
+.auth-error{color:#ff3040;font-family:'Rajdhani',sans-serif;font-size:12px;margin-top:10px;min-height:18px;}
+.auth-corner{position:absolute;width:16px;height:16px;}
+.auth-corner-tl{top:-1px;left:-1px;border-top:2px solid #0ef0e8;border-left:2px solid #0ef0e8;}
+.auth-corner-tr{top:-1px;right:-1px;border-top:2px solid #0ef0e8;border-right:2px solid #0ef0e8;}
+.auth-corner-bl{bottom:-1px;left:-1px;border-bottom:2px solid #e8731e;border-left:2px solid #e8731e;}
+.auth-corner-br{bottom:-1px;right:-1px;border-bottom:2px solid #e8731e;border-right:2px solid #e8731e;}
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="auth-gate">
+  <div class="auth-box" style="position:relative">
+    <div class="auth-corner auth-corner-tl"></div>
+    <div class="auth-corner auth-corner-tr"></div>
+    <div class="auth-corner auth-corner-bl"></div>
+    <div class="auth-corner auth-corner-br"></div>
+    <div class="auth-logo">MICA</div>
+    <div class="auth-sub">DEFENSE CONTRACT INTELLIGENCE</div>
+    <div class="auth-label">Authorization Required</div>
+    <input type="password" id="auth-pw" placeholder="Enter access code" autocomplete="off" autofocus>
+    <button id="auth-btn">AUTHENTICATE</button>
+    <div class="auth-error" id="auth-err"></div>
+  </div>
+</div>
+
+<div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div>
+
+<div class="app" style="display:none" id="main-app">
+<div class="header">
+  <div class="logo">MICA</div>
+  <div class="logo-sub">INTEL v1.0</div>
+  <div class="nav-center" id="navTabs"></div>
+  <div class="search-wrap">
+    <span class="search-icon">&#x25C7;</span>
+    <input id="searchInput" type="text" placeholder="Search company, command, contract, tech..."/>
+    <div id="searchResults" class="search-results"></div>
+  </div>
+  <div class="topstats">
+    <div class="ts"><div class="ts-val" id="s-contracts">0</div><div class="ts-lbl">Contracts</div></div>
+    <div class="ts"><div class="ts-val" id="s-value">$0</div><div class="ts-lbl">Value</div></div>
+    <div class="ts"><div class="ts-val" id="s-companies">0</div><div class="ts-lbl">Companies</div></div>
+    <div class="ts"><div class="ts-val" id="s-signals">0</div><div class="ts-lbl">Signals</div></div>
+  </div>
+</div>
+
+<div class="main-area">
+  <!-- Layer panel (map & radar only) -->
+  <div class="layer-panel" id="layerPanel">
+    <div class="lp-hdr">INTELLIGENCE LAYERS</div>
+    <div class="lp-sec">Base</div>
+    <div class="lt on" data-layer="installations"><div class="lt-ck">&#x2713;</div><div class="lt-dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange)"></div><div class="lt-name">Installations</div><div class="lt-ct" id="lc-inst">0</div></div>
+    <div class="lt on" data-layer="commands"><div class="lt-ck">&#x2713;</div><div class="lt-dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></div><div class="lt-name">Commands</div><div class="lt-ct" id="lc-cmd">0</div></div>
+    <div class="lp-sec">Contracts</div>
+    <div class="lt on" data-layer="contracts"><div class="lt-ck">&#x2713;</div><div class="lt-dot" style="background:var(--purple)"></div><div class="lt-name">Contracts</div><div class="lt-ct" id="lc-con">0</div></div>
+    <div class="lt" data-layer="heatmap"><div class="lt-ck"></div><div class="lt-dot" style="background:linear-gradient(135deg,#ff3040,#ffd600,#00e87e)"></div><div class="lt-name">Contract Density</div><div class="lt-ct"></div></div>
+    <div class="lt" data-layer="expirations"><div class="lt-ck"></div><div class="lt-dot" style="background:var(--yellow)"></div><div class="lt-name">Expirations</div><div class="lt-ct" id="lc-exp">0</div></div>
+    <div class="lt" data-layer="cog"><div class="lt-ck"></div><div class="lt-dot" style="background:#fff;box-shadow:0 0 6px #fff"></div><div class="lt-name">Center of Gravity</div><div class="lt-ct" id="lc-cog">0</div></div>
+    <div class="lp-sec">Ecosystem</div>
+    <div class="lt on" data-layer="primes"><div class="lt-ck">&#x2713;</div><div class="lt-dot" style="background:var(--green)"></div><div class="lt-name">Prime Contractors</div><div class="lt-ct" id="lc-primes">0</div></div>
+    <div class="lt" data-layer="subs"><div class="lt-ck"></div><div class="lt-dot" style="background:var(--purple)"></div><div class="lt-name">Subcontract Networks</div><div class="lt-ct" id="lc-subs">0</div></div>
+    <div class="lt" data-layer="dominance"><div class="lt-ck"></div><div class="lt-dot" style="background:linear-gradient(135deg,#3b82f6,#00e87e,#e8731e,#8b5cf6)"></div><div class="lt-name">Contractor Dominance</div><div class="lt-ct"></div></div>
+    <div class="lp-sec">Workforce</div>
+    <div class="lt" data-layer="workforce"><div class="lt-ck"></div><div class="lt-dot" style="background:var(--cyan);opacity:0.6"></div><div class="lt-name">Workforce Signals</div><div class="lt-ct" id="lc-wf">0</div></div>
+    <div class="lt" data-layer="hiring"><div class="lt-ck"></div><div class="lt-dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div><div class="lt-name">Hiring Activity</div><div class="lt-ct" id="lc-hiring">0</div></div>
+    <div class="legend">
+      <div class="legend-title">Expirations</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--green)"></div> &gt;24 mo</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--yellow)"></div> 12–24 mo</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--orange)"></div> 6–12 mo</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div> &lt;6 mo</div>
+    </div>
+  </div>
+
+  <!-- Content area -->
+  <div class="content">
+    <div class="view active" id="view-map"><div id="map"></div></div>
+    <div class="view" id="view-radar"><svg id="graph-svg"></svg><div class="ticker-strip" id="ticker"></div></div>
+    <div class="view" id="view-contracts"><div class="table-container"><table><thead><tr><th>Contract</th><th>Command</th><th>Prime</th><th>Set-Asides</th><th>Value</th><th>End Date</th><th>Source</th></tr></thead><tbody id="t-contracts"></tbody></table></div></div>
+    <div class="view" id="view-companies"><div class="table-container"><table><thead><tr><th>Company</th><th>Type</th><th>Set-Asides</th><th>Prime $</th><th>Sub $</th><th>Reverse-Sub</th><th>Signals</th></tr></thead><tbody id="t-companies"></tbody></table></div></div>
+    <div class="view" id="view-signals"><div class="table-container"><table><thead><tr><th>Company</th><th>Job Title</th><th>Cmd Ref</th><th>Clearance</th><th>Contract Match</th><th>Confidence</th></tr></thead><tbody id="t-signals"></tbody></table></div></div>
+    <div class="view" id="view-brief"><div class="report-container" id="report-out"></div></div>
+
+    <!-- Detail panel -->
+    <div class="detail-panel" id="detailPanel">
+      <div class="dp-hdr">
+        <div><div class="dp-type" id="dpType"></div><div class="dp-title" id="dpTitle"></div><div class="dp-sub" id="dpSub"></div></div>
+        <button class="dp-close" onclick="closeDetail()">&times;</button>
+      </div>
+      <div class="dp-body" id="dpBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="bi"><div class="bi-dot live"></div>PIPELINE ACTIVE</div>
+  <div class="bi"><div class="bi-dot warn"></div>API: SANDBOX</div>
+  <div class="bi" id="bi-edges">0 EDGES</div>
+  <div class="bi" id="bi-corr">0 CORRELATIONS</div>
+  <div class="bi-spacer"></div>
+  <div class="bi" style="color:var(--text)">HAMPTON ROADS AOI</div>
+  <div class="bi-time" id="clock">00:00:00</div>
+</div>
+</div>
+
+<!-- Network graph modal -->
+<div class="ng-overlay" id="ngOverlay">
+  <div class="ng-modal">
+    <div class="ng-hdr"><div class="ng-title" id="ngTitle">SUBCONTRACT ECOSYSTEM</div><button class="ng-close" onclick="closeNetgraph()">&times;</button></div>
+    <svg id="netgraph-svg"></svg>
+  </div>
+</div>
+
+<script>
+// ── AUTH GATE ──
+(function(){
+  // SHA-256 hash of the password (not stored in plaintext)
+  const HASH='038f2c17bee38ced339d4e11547d42011d701fc0f6b05c7a9d4f4b783f37612e';
+  async function sha256(str){
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  const gate=document.getElementById('auth-gate');
+  const app=document.getElementById('main-app');
+  const pw=document.getElementById('auth-pw');
+  const btn=document.getElementById('auth-btn');
+  const err=document.getElementById('auth-err');
+
+  // Check if already authenticated this session
+  if(sessionStorage.getItem('mica-auth')==='1'){
+    gate.classList.add('hidden');app.style.display='';
+  }
+
+  async function tryAuth(){
+    const val=pw.value;
+    const h=await sha256(val);
+    if(h===HASH){
+      sessionStorage.setItem('mica-auth','1');
+      gate.classList.add('hidden');app.style.display='';
+    }else{
+      err.textContent='ACCESS DENIED — Invalid credentials';
+      pw.value='';pw.focus();
+      setTimeout(()=>{err.textContent='';},3000);
+    }
+  }
+  btn.addEventListener('click',tryAuth);
+  pw.addEventListener('keydown',function(e){if(e.key==='Enter')tryAuth();});
+})();
+</script>
+
+<script>
+const DATA = {"generated_at": "2026-03-11T11:08:11.991111", "installations": [{"id": "jeblcfs", "name": "Joint Expeditionary Base Little Creek-Fort Story", "lat": 36.9186, "lon": -76.1602, "city": "Virginia Beach", "state": "VA", "description": "Major operating base for expeditionary forces, Atlantic Fleet. 75+ tenant commands, 18,091 personnel, $900M payroll."}, {"id": "dam_neck", "name": "NAS Oceana Dam Neck Annex", "lat": 36.811, "lon": -75.9674, "city": "Virginia Beach", "state": "VA", "description": "Fleet training center with 20+ tenant commands. Trains 16,000+ students annually in 210+ courses."}, {"id": "nas_oceana", "name": "Naval Air Station Oceana", "lat": 36.8207, "lon": -76.0329, "city": "Virginia Beach", "state": "VA", "description": "Master jet base for East Coast Navy strike fighter squadrons."}, {"id": "norfolk_nob", "name": "Naval Station Norfolk", "lat": 36.946, "lon": -76.3158, "city": "Norfolk", "state": "VA", "description": "World's largest naval station. Major fleet concentration area adjacent to Little Creek operations."}], "commands": [{"id": "necc", "name": "Navy Expeditionary Combat Command", "abbreviation": "NECC", "installation_id": "jeblcfs", "mission_area": "Expeditionary Warfare", "description": "Type command managing 21,000 expeditionary forces. HQ at Little Creek."}, {"id": "nswg2", "name": "Naval Special Warfare Group 2", "abbreviation": "NSWG-2", "installation_id": "jeblcfs", "mission_area": "Special Operations", "description": "East Coast NSW group. Commands SEAL Teams 2, 4, 10, 18."}, {"id": "st2", "name": "SEAL Team 2", "abbreviation": "ST-2", "installation_id": "jeblcfs", "mission_area": "Special Operations", "description": "East Coast SEAL team under NSWG-2."}, {"id": "st4", "name": "SEAL Team 4", "abbreviation": "ST-4", "installation_id": "jeblcfs", "mission_area": "Special Operations", "description": "East Coast SEAL team under NSWG-2, SOUTHCOM focus."}, {"id": "st10", "name": "SEAL Team 10", "abbreviation": "ST-10", "installation_id": "jeblcfs", "mission_area": "Special Operations", "description": "East Coast SEAL team under NSWG-2."}, {"id": "st18", "name": "SEAL Team 18", "abbreviation": "ST-18", "installation_id": "jeblcfs", "mission_area": "Special Operations", "description": "Reserve SEAL team at Little Creek."}, {"id": "nswg4", "name": "Naval Special Warfare Group 4", "abbreviation": "NSWG-4", "installation_id": "jeblcfs", "mission_area": "Special Operations", "description": "Special Boat Teams East Coast. Operates Mark V SOC, RHIB, and combatant craft."}, {"id": "ewtgl", "name": "Expeditionary Warfare Training Group Atlantic", "abbreviation": "EWTGL", "installation_id": "jeblcfs", "mission_area": "Training", "description": "Provides expeditionary warfare training for Atlantic Fleet."}, {"id": "cyberfor", "name": "Navy Cyber Forces", "abbreviation": "CYBERFOR", "installation_id": "jeblcfs", "mission_area": "Cyber/Information Warfare", "description": "Type command for crypto/SIGINT, EW, IO, intelligence, networks, space."}, {"id": "acb2", "name": "Amphibious Construction Battalion 2", "abbreviation": "ACB-2", "installation_id": "jeblcfs", "mission_area": "Expeditionary Warfare", "description": "Naval construction and elevated causeway systems."}, {"id": "bmu2", "name": "Beachmaster Unit 2", "abbreviation": "BMU-2", "installation_id": "jeblcfs", "mission_area": "Expeditionary Warfare", "description": "Beach and surf zone operations for amphibious operations."}, {"id": "ncd2", "name": "Naval Construction Division 2", "abbreviation": "NCD-2", "installation_id": "jeblcfs", "mission_area": "Construction", "description": "Seabee construction support at Little Creek."}, {"id": "msron", "name": "Maritime Security Squadron", "abbreviation": "MSRON", "installation_id": "jeblcfs", "mission_area": "Maritime Security", "description": "Port and waterway security operations."}, {"id": "rivron", "name": "Coastal Riverine Squadron", "abbreviation": "RIVRON", "installation_id": "jeblcfs", "mission_area": "Coastal/Riverine Warfare", "description": "Coastal and riverine patrol operations."}, {"id": "11trans", "name": "11th Transportation Battalion", "abbreviation": "11th Trans", "installation_id": "jeblcfs", "mission_area": "Logistics", "description": "Army transportation battalion at Fort Story."}, {"id": "navscmus", "name": "Naval School of Music", "abbreviation": "NAVSCMUS", "installation_id": "jeblcfs", "mission_area": "Training", "description": "Training school for Navy musicians."}, {"id": "devgru", "name": "Naval Special Warfare Development Group", "abbreviation": "DEVGRU", "installation_id": "dam_neck", "mission_area": "Special Operations", "description": "Tier 1 special mission unit. Dam Neck Annex."}, {"id": "nswcdd_dna", "name": "NSWC Dahlgren Division Dam Neck Activity", "abbreviation": "NSWCDD DNA", "installation_id": "dam_neck", "mission_area": "Combat Systems Engineering", "description": "Combat systems engineering, integration, and fleet support. Trains 20,000+ students annually."}, {"id": "cdsa", "name": "Combat Direction Systems Activity Dam Neck", "abbreviation": "CDSA", "installation_id": "dam_neck", "mission_area": "Combat Systems", "description": "Aegis and combat direction systems development and support."}, {"id": "tactragrulant", "name": "Tactical Training Group Atlantic", "abbreviation": "TACTRAGRULANT", "installation_id": "dam_neck", "mission_area": "Training", "description": "Tactical training for Atlantic Fleet surface warfare."}, {"id": "nmitc", "name": "Navy Marine Corps Intelligence Training Center", "abbreviation": "NMITC", "installation_id": "dam_neck", "mission_area": "Intelligence Training", "description": "Intelligence training for Navy and Marine Corps."}, {"id": "tsc_hr", "name": "Training Support Center Hampton Roads", "abbreviation": "TSC HR", "installation_id": "dam_neck", "mission_area": "Training", "description": "Fleet training center, formerly FTC Dam Neck."}, {"id": "nexwdc", "name": "Navy Expeditionary Warfare Development Center", "abbreviation": "NEXWDC", "installation_id": "dam_neck", "mission_area": "Doctrine/Development", "description": "Develops expeditionary warfare tactics and doctrine. Under NECC."}], "contracts": [{"id": "curated_valkyrie_dna_2026", "contract_number": "N00178-26-C-XXXX", "parent_award_id": null, "description": "Combat Systems Engineering Services - AEGIS, ZUMWALT, ICS support for NSWCDD Dam Neck Activity", "command_id": "nswcdd_dna", "prime_contractor_id": "valkyrie", "award_amount": 48000000.0, "obligated_amount": null, "start_date": "2026-02-01", "end_date": "2031-02-01", "potential_end_date": "2031-02-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "541330", "naics_description": "Engineering Services", "psc_code": "R425", "psc_description": null, "contracting_office": "NSWC Dahlgren Division", "funding_agency": "Department of the Navy", "data_source": "curated_press"}, {"id": "curated_qed_383m", "contract_number": "N00024-24-C-XXXX", "parent_award_id": null, "description": "Ship Maintenance Specification Development and Availability Execution Support", "command_id": "nswcdd_dna", "prime_contractor_id": "qed_systems", "award_amount": 383000000.0, "obligated_amount": null, "start_date": "2024-03-01", "end_date": "2029-03-01", "potential_end_date": "2029-03-01", "place_of_performance": "Virginia Beach, VA (50%), San Diego, CA (30%)", "naics_code": "336611", "naics_description": "Ship Building and Repairing", "psc_code": "J998", "psc_description": null, "contracting_office": "NAVSEA", "funding_agency": "Department of the Navy", "data_source": "curated_press"}, {"id": "curated_vt_milcom_1b", "contract_number": "N00024-25-D-4352", "parent_award_id": null, "description": "Communications and IT Systems Support for Navy Surface Combatants", "command_id": "nswcdd_dna", "prime_contractor_id": "vt_milcom", "award_amount": 1123590000.0, "obligated_amount": null, "start_date": "2025-09-01", "end_date": "2030-09-01", "potential_end_date": "2030-09-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "541512", "naics_description": "Computer Systems Design Services", "psc_code": "D302", "psc_description": null, "contracting_office": "NAVSEA", "funding_agency": "Department of the Navy", "data_source": "curated_press"}, {"id": "curated_necc_base_ops", "contract_number": "N62470-23-C-XXXX", "parent_award_id": null, "description": "NECC Base Operations and Facility Support Services", "command_id": "necc", "prime_contractor_id": "serco", "award_amount": 85000000.0, "obligated_amount": null, "start_date": "2023-10-01", "end_date": "2028-10-01", "potential_end_date": "2028-10-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "561210", "naics_description": "Facilities Support Services", "psc_code": "S216", "psc_description": null, "contracting_office": "NAVFAC Mid-Atlantic", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_necc_training", "contract_number": "N00189-24-D-XXXX", "parent_award_id": null, "description": "Expeditionary Warfare Training Support and Simulation Services", "command_id": "ewtgl", "prime_contractor_id": "booz_allen", "award_amount": 120000000.0, "obligated_amount": null, "start_date": "2024-01-01", "end_date": "2029-01-01", "potential_end_date": "2029-01-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "611430", "naics_description": "Professional and Management Development Training", "psc_code": "U008", "psc_description": null, "contracting_office": "NECC", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_cyberfor_it", "contract_number": "N00039-24-D-XXXX", "parent_award_id": null, "description": "Cyber Operations IT Infrastructure and Network Security Support", "command_id": "cyberfor", "prime_contractor_id": "leidos", "award_amount": 250000000.0, "obligated_amount": null, "start_date": "2024-06-01", "end_date": "2029-06-01", "potential_end_date": "2029-06-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "541519", "naics_description": "Other Computer Related Services", "psc_code": "D310", "psc_description": null, "contracting_office": "SPAWAR / NAVWAR", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_nsw_training_saic", "contract_number": "N00178-23-D-XXXX", "parent_award_id": null, "description": "NSW Training Systems and Simulation Support", "command_id": "nswg2", "prime_contractor_id": "saic", "award_amount": 95000000.0, "obligated_amount": null, "start_date": "2023-07-01", "end_date": "2028-07-01", "potential_end_date": "2028-07-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "541715", "naics_description": "Research and Development in the Physical Sciences", "psc_code": "U012", "psc_description": null, "contracting_office": "NSWC", "funding_agency": "Department of the Navy / USSOCOM", "data_source": "curated_estimated"}, {"id": "curated_cdsa_aegis", "contract_number": "N00024-25-D-XXXX", "parent_award_id": null, "description": "AEGIS Combat System Technical Support and Integration", "command_id": "cdsa", "prime_contractor_id": "northrop_grumman", "award_amount": 310000000.0, "obligated_amount": null, "start_date": "2025-01-01", "end_date": "2030-01-01", "potential_end_date": "2030-01-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "541330", "naics_description": "Engineering Services", "psc_code": "R425", "psc_description": null, "contracting_office": "PEO IWS", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_nmitc_intel_training", "contract_number": "N00189-24-C-XXXX", "parent_award_id": null, "description": "Intelligence Training Courseware Development and Instructor Support", "command_id": "nmitc", "prime_contractor_id": "caci", "award_amount": 65000000.0, "obligated_amount": null, "start_date": "2024-03-01", "end_date": "2029-03-01", "potential_end_date": "2029-03-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "611430", "naics_description": "Professional and Management Development Training", "psc_code": "U008", "psc_description": null, "contracting_office": "NETC", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_dam_neck_facilities", "contract_number": "N62470-25-C-XXXX", "parent_award_id": null, "description": "Dam Neck Annex Facility Maintenance and Base Operations Support", "command_id": "tsc_hr", "prime_contractor_id": "kbr", "award_amount": 72000000.0, "obligated_amount": null, "start_date": "2025-04-01", "end_date": "2030-04-01", "potential_end_date": "2030-04-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "561210", "naics_description": "Facilities Support Services", "psc_code": "S216", "psc_description": null, "contracting_office": "NAVFAC Mid-Atlantic", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_msron_security", "contract_number": "N00189-24-D-XXXX", "parent_award_id": null, "description": "Maritime Security Equipment Maintenance and Training Support", "command_id": "msron", "prime_contractor_id": "general_dynamics_it", "award_amount": 42000000.0, "obligated_amount": null, "start_date": "2024-08-01", "end_date": "2027-08-01", "potential_end_date": "2029-08-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "336413", "naics_description": "Other Aircraft Parts and Equipment", "psc_code": "J015", "psc_description": null, "contracting_office": "NECC", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_nswg4_soc_maint", "contract_number": "N00024-24-D-XXXX", "parent_award_id": null, "description": "Special Operations Craft Maintenance, Repair and Overhaul", "command_id": "nswg4", "prime_contractor_id": "v2x", "award_amount": 58000000.0, "obligated_amount": null, "start_date": "2024-05-01", "end_date": "2029-05-01", "potential_end_date": "2029-05-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "336612", "naics_description": "Boat Building", "psc_code": "J019", "psc_description": null, "contracting_office": "NSWC Crane", "funding_agency": "Department of the Navy / USSOCOM", "data_source": "curated_estimated"}, {"id": "curated_anchor_seaport_nxg", "contract_number": "N00178-19-D-7122", "parent_award_id": null, "description": "Combatant Craft Maintenance, Maritime Training, and Operational Support (Seaport-NxG)", "command_id": "nswg4", "prime_contractor_id": "anchor_innovation", "award_amount": 12000000.0, "obligated_amount": null, "start_date": "2019-10-01", "end_date": "2029-09-30", "potential_end_date": "2029-09-30", "place_of_performance": "Virginia Beach, VA", "naics_code": "336612", "naics_description": "Boat Building", "psc_code": "J019", "psc_description": null, "contracting_office": "NAVSEA / Seaport-NxG", "funding_agency": "Department of the Navy", "data_source": "curated_press"}, {"id": "curated_anchor_usv_training", "contract_number": "N00189-25-C-XXXX", "parent_award_id": null, "description": "Small Unmanned Surface Vessel (sUSV) Fleet Integration Training and Maritime Seamanship Instruction", "command_id": "ewtgl", "prime_contractor_id": "anchor_innovation", "award_amount": 8500000.0, "obligated_amount": null, "start_date": "2025-03-01", "end_date": "2028-03-01", "potential_end_date": "2030-03-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "611430", "naics_description": "Professional and Management Development Training", "psc_code": "U008", "psc_description": null, "contracting_office": "NECC", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}, {"id": "curated_anchor_necc_forceprotect", "contract_number": "N00189-24-D-XXXX", "parent_award_id": null, "description": "Force Protection and Anti-Terrorism Maritime Operations Support", "command_id": "necc", "prime_contractor_id": "anchor_innovation", "award_amount": 6000000.0, "obligated_amount": null, "start_date": "2024-01-01", "end_date": "2027-01-01", "potential_end_date": "2029-01-01", "place_of_performance": "Virginia Beach, VA", "naics_code": "561612", "naics_description": "Security Guards and Patrol Services", "psc_code": "S206", "psc_description": null, "contracting_office": "NECC", "funding_agency": "Department of the Navy", "data_source": "curated_estimated"}], "companies": [{"id": "booz_allen", "name": "Booz Allen Hamilton", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "leidos", "name": "Leidos", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "saic", "name": "SAIC", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "general_dynamics_it", "name": "General Dynamics IT", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "northrop_grumman", "name": "Northrop Grumman", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "l3harris", "name": "L3Harris Technologies", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "bae_systems", "name": "BAE Systems", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "hii", "name": "Huntington Ingalls Industries", "duns": null, "cage_code": null, "city": "Newport News", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "caci", "name": "CACI International", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "peraton", "name": "Peraton", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "kbr", "name": "KBR Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "serco", "name": "Serco Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "valkyrie", "name": "Valkyrie Enterprises", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business Prime"}, {"id": "qed_systems", "name": "Q.E.D. Systems Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Mid-Tier"}, {"id": "vt_milcom", "name": "VT Milcom Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Mid-Tier"}, {"id": "teksynap", "name": "TekSynap", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "smartronix", "name": "Smartronix", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "colsa", "name": "COLSA Corporation", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "torch_technologies", "name": "Torch Technologies", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "mayvin", "name": "Mayvin Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "insignia_federal", "name": "Insignia Federal Group", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "vre_systems", "name": "VRE Systems", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "jacobs", "name": "Jacobs Engineering", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "amentum", "name": "Amentum", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "v2x", "name": "V2X (formerly Vectrus)", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "anchor_innovation", "name": "Anchor Innovation Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business Prime"}, {"id": "disc_cobham_advanced_electronic_solutions", "name": "Cobham Advanced Electronic Solutions", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Mid-Tier"}, {"id": "disc_decisive_point_consulting", "name": "Decisive Point Consulting", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_k2_group", "name": "K2 Group", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_applied_research_associates", "name": "Applied Research Associates", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Mid-Tier"}, {"id": "disc_trideum_corporation", "name": "Trideum Corporation", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_strategic_operational_solutions", "name": "Strategic Operational Solutions", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_dignitas_technologies", "name": "Dignitas Technologies", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_gray_tier_technologies", "name": "Gray Tier Technologies", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_prevailance_inc", "name": "Prevailance Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_ecs_federal", "name": "ECS Federal", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Mid-Tier"}, {"id": "disc_global_defense___national_security_systems", "name": "Global Defense & National Security Systems", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_velos", "name": "Velos", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_huntington_ingalls___technical_solutions", "name": "Huntington Ingalls - Technical Solutions", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Large Prime"}, {"id": "disc_oceaneering_international", "name": "Oceaneering International", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 0, "company_type": "Mid-Tier"}, {"id": "disc_progeny_systems_corporation", "name": "Progeny Systems Corporation", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_rei_systems", "name": "REI Systems", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_whitney_bradley___brown", "name": "Whitney Bradley & Brown", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_nova_technologies", "name": "Nova Technologies", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_sigma_defense_systems", "name": "Sigma Defense Systems", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_sonalysts_inc", "name": "Sonalysts Inc", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_marton_technologies", "name": "Marton Technologies", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business (SDVOSB)"}, {"id": "disc_athena_construction_group", "name": "Athena Construction Group", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business (SDVOSB)"}, {"id": "disc_tactical_engineering___analysis", "name": "Tactical Engineering & Analysis", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_next_tier_concepts", "name": "Next Tier Concepts", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business (8a)"}, {"id": "disc_ita_international", "name": "ITA International", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business (SDVOSB)"}, {"id": "disc_chesapeake_technology_international", "name": "Chesapeake Technology International", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business"}, {"id": "disc_triton_systems", "name": "Triton Systems", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business (HUBZone)"}, {"id": "disc_patriot_defense_group", "name": "Patriot Defense Group", "duns": null, "cage_code": null, "city": "Virginia Beach", "state": "VA", "small_business": 1, "company_type": "Small Business (SDVOSB)"}], "subcontracts": [{"id": 1, "contract_id": "curated_necc_training", "prime_contractor_id": "booz_allen", "subcontractor_id": "mayvin", "subaward_amount": 12000000.0, "subaward_date": null, "description": "SME support for expeditionary warfare training", "data_source": "inferred", "confidence": "medium"}, {"id": 2, "contract_id": "curated_necc_training", "prime_contractor_id": "booz_allen", "subcontractor_id": "insignia_federal", "subaward_amount": 8500000.0, "subaward_date": null, "description": "Training simulation development", "data_source": "inferred", "confidence": "medium"}, {"id": 3, "contract_id": "curated_cyberfor_it", "prime_contractor_id": "leidos", "subcontractor_id": "teksynap", "subaward_amount": 18000000.0, "subaward_date": null, "description": "Network engineering and cybersecurity", "data_source": "inferred", "confidence": "medium"}, {"id": 4, "contract_id": "curated_cyberfor_it", "prime_contractor_id": "leidos", "subcontractor_id": "smartronix", "subaward_amount": 22000000.0, "subaward_date": null, "description": "Cloud and cyber operations", "data_source": "inferred", "confidence": "medium"}, {"id": 5, "contract_id": "curated_nsw_training_saic", "prime_contractor_id": "saic", "subcontractor_id": "torch_technologies", "subaward_amount": 9500000.0, "subaward_date": null, "description": "Modeling and simulation support", "data_source": "inferred", "confidence": "medium"}, {"id": 6, "contract_id": "curated_nsw_training_saic", "prime_contractor_id": "saic", "subcontractor_id": "colsa", "subaward_amount": 7000000.0, "subaward_date": null, "description": "Systems engineering support", "data_source": "inferred", "confidence": "low"}, {"id": 7, "contract_id": "curated_cdsa_aegis", "prime_contractor_id": "northrop_grumman", "subcontractor_id": "valkyrie", "subaward_amount": 28000000.0, "subaward_date": null, "description": "Combat systems integration engineering", "data_source": "inferred", "confidence": "high"}, {"id": 8, "contract_id": "curated_cdsa_aegis", "prime_contractor_id": "northrop_grumman", "subcontractor_id": "qed_systems", "subaward_amount": 15000000.0, "subaward_date": null, "description": "Ship maintenance planning support", "data_source": "inferred", "confidence": "medium"}, {"id": 9, "contract_id": "curated_nmitc_intel_training", "prime_contractor_id": "caci", "subcontractor_id": "vre_systems", "subaward_amount": 5000000.0, "subaward_date": null, "description": "VR/AR training environment development", "data_source": "inferred", "confidence": "low"}, {"id": 10, "contract_id": "curated_dam_neck_facilities", "prime_contractor_id": "kbr", "subcontractor_id": "jacobs", "subaward_amount": 12000000.0, "subaward_date": null, "description": "Facilities engineering and environmental", "data_source": "inferred", "confidence": "medium"}, {"id": 11, "contract_id": "curated_vt_milcom_1b", "prime_contractor_id": "vt_milcom", "subcontractor_id": "l3harris", "subaward_amount": 95000000.0, "subaward_date": null, "description": "Communications equipment and integration", "data_source": "inferred", "confidence": "high"}, {"id": 12, "contract_id": "curated_nswg4_soc_maint", "prime_contractor_id": "v2x", "subcontractor_id": "valkyrie", "subaward_amount": 8000000.0, "subaward_date": null, "description": "Marine engineering support", "data_source": "inferred", "confidence": "medium"}, {"id": 13, "contract_id": "curated_nswg4_soc_maint", "prime_contractor_id": "v2x", "subcontractor_id": "anchor_innovation", "subaward_amount": 6500000.0, "subaward_date": null, "description": "Combatant craft maintenance and boat overhaul", "data_source": "inferred", "confidence": "high"}, {"id": 14, "contract_id": "curated_nsw_training_saic", "prime_contractor_id": "saic", "subcontractor_id": "anchor_innovation", "subaward_amount": 4000000.0, "subaward_date": null, "description": "Maritime seamanship and small craft training instruction", "data_source": "inferred", "confidence": "medium"}, {"id": 15, "contract_id": "curated_necc_training", "prime_contractor_id": "booz_allen", "subcontractor_id": "anchor_innovation", "subaward_amount": 3500000.0, "subaward_date": null, "description": "Expeditionary maritime training and Force Protection SME support", "data_source": "inferred", "confidence": "medium"}, {"id": 16, "contract_id": "curated_necc_training", "prime_contractor_id": "booz_allen", "subcontractor_id": "mayvin", "subaward_amount": 12000000.0, "subaward_date": null, "description": "SME support for expeditionary warfare training", "data_source": "inferred", "confidence": "medium"}, {"id": 17, "contract_id": "curated_necc_training", "prime_contractor_id": "booz_allen", "subcontractor_id": "insignia_federal", "subaward_amount": 8500000.0, "subaward_date": null, "description": "Training simulation development", "data_source": "inferred", "confidence": "medium"}, {"id": 18, "contract_id": "curated_cyberfor_it", "prime_contractor_id": "leidos", "subcontractor_id": "teksynap", "subaward_amount": 18000000.0, "subaward_date": null, "description": "Network engineering and cybersecurity", "data_source": "inferred", "confidence": "medium"}, {"id": 19, "contract_id": "curated_cyberfor_it", "prime_contractor_id": "leidos", "subcontractor_id": "smartronix", "subaward_amount": 22000000.0, "subaward_date": null, "description": "Cloud and cyber operations", "data_source": "inferred", "confidence": "medium"}, {"id": 20, "contract_id": "curated_nsw_training_saic", "prime_contractor_id": "saic", "subcontractor_id": "torch_technologies", "subaward_amount": 9500000.0, "subaward_date": null, "description": "Modeling and simulation support", "data_source": "inferred", "confidence": "medium"}, {"id": 21, "contract_id": "curated_nsw_training_saic", "prime_contractor_id": "saic", "subcontractor_id": "colsa", "subaward_amount": 7000000.0, "subaward_date": null, "description": "Systems engineering support", "data_source": "inferred", "confidence": "low"}, {"id": 22, "contract_id": "curated_cdsa_aegis", "prime_contractor_id": "northrop_grumman", "subcontractor_id": "valkyrie", "subaward_amount": 28000000.0, "subaward_date": null, "description": "Combat systems integration engineering", "data_source": "inferred", "confidence": "high"}, {"id": 23, "contract_id": "curated_cdsa_aegis", "prime_contractor_id": "northrop_grumman", "subcontractor_id": "qed_systems", "subaward_amount": 15000000.0, "subaward_date": null, "description": "Ship maintenance planning support", "data_source": "inferred", "confidence": "medium"}, {"id": 24, "contract_id": "curated_nmitc_intel_training", "prime_contractor_id": "caci", "subcontractor_id": "vre_systems", "subaward_amount": 5000000.0, "subaward_date": null, "description": "VR/AR training environment development", "data_source": "inferred", "confidence": "low"}, {"id": 25, "contract_id": "curated_dam_neck_facilities", "prime_contractor_id": "kbr", "subcontractor_id": "jacobs", "subaward_amount": 12000000.0, "subaward_date": null, "description": "Facilities engineering and environmental", "data_source": "inferred", "confidence": "medium"}, {"id": 26, "contract_id": "curated_vt_milcom_1b", "prime_contractor_id": "vt_milcom", "subcontractor_id": "l3harris", "subaward_amount": 95000000.0, "subaward_date": null, "description": "Communications equipment and integration", "data_source": "inferred", "confidence": "high"}, {"id": 27, "contract_id": "curated_nswg4_soc_maint", "prime_contractor_id": "v2x", "subcontractor_id": "valkyrie", "subaward_amount": 8000000.0, "subaward_date": null, "description": "Marine engineering support", "data_source": "inferred", "confidence": "medium"}, {"id": 28, "contract_id": "curated_nswg4_soc_maint", "prime_contractor_id": "v2x", "subcontractor_id": "anchor_innovation", "subaward_amount": 6500000.0, "subaward_date": null, "description": "Combatant craft maintenance and boat overhaul", "data_source": "inferred", "confidence": "high"}, {"id": 29, "contract_id": "curated_nsw_training_saic", "prime_contractor_id": "saic", "subcontractor_id": "anchor_innovation", "subaward_amount": 4000000.0, "subaward_date": null, "description": "Maritime seamanship and small craft training instruction", "data_source": "inferred", "confidence": "medium"}, {"id": 30, "contract_id": "curated_necc_training", "prime_contractor_id": "booz_allen", "subcontractor_id": "anchor_innovation", "subaward_amount": 3500000.0, "subaward_date": null, "description": "Expeditionary maritime training and Force Protection SME support", "data_source": "inferred", "confidence": "medium"}], "workforce_signals": [{"id": 1, "company_id": "booz_allen", "job_title": "Expeditionary Warfare Training Analyst", "location": "Virginia Beach, VA", "customer_reference": "Navy NECC", "command_reference": "EWTGL", "technology_keywords": "simulation, LVC, training systems", "labor_category": "Training Specialist", "clearance_required": "Secret", "date_posted": "2026-01-15", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 2, "company_id": "booz_allen", "job_title": "Senior Military Operations Analyst", "location": "Virginia Beach, VA", "customer_reference": "Navy expeditionary", "command_reference": "NECC", "technology_keywords": "CONOPS, TTP, doctrine", "labor_category": "Operations Analyst", "clearance_required": "TS/SCI", "date_posted": "2026-02-01", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 3, "company_id": "leidos", "job_title": "Cybersecurity Engineer - Navy Programs", "location": "Virginia Beach, VA", "customer_reference": "Navy Cyber", "command_reference": "CYBERFOR", "technology_keywords": "SIEM, network defense, RMF", "labor_category": "Cyber Engineer", "clearance_required": "TS/SCI", "date_posted": "2026-01-20", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 4, "company_id": "leidos", "job_title": "Network Engineer III", "location": "Virginia Beach, VA", "customer_reference": "Navy", "command_reference": "Little Creek", "technology_keywords": "Cisco, CANES, ADNS", "labor_category": "Network Engineer", "clearance_required": "Secret", "date_posted": "2026-02-10", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 5, "company_id": "saic", "job_title": "NSW Training Systems Engineer", "location": "Virginia Beach, VA", "customer_reference": "Naval Special Warfare", "command_reference": "NSWG-2", "technology_keywords": "VBS, JTAC, simulation", "labor_category": "Systems Engineer", "clearance_required": "TS/SCI", "date_posted": "2025-12-01", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 6, "company_id": "northrop_grumman", "job_title": "AEGIS Combat Systems Engineer", "location": "Virginia Beach, VA", "customer_reference": "PEO IWS", "command_reference": "Dam Neck", "technology_keywords": "AEGIS, SPY radar, BMD", "labor_category": "Systems Engineer", "clearance_required": "Secret", "date_posted": "2026-02-15", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 7, "company_id": "valkyrie", "job_title": "Combat Systems Integration Engineer", "location": "Virginia Beach, VA", "customer_reference": "NSWCDD DNA", "command_reference": "Dam Neck", "technology_keywords": "combat systems, C6ISR, AEGIS", "labor_category": "Engineer", "clearance_required": "Secret", "date_posted": "2026-03-01", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 8, "company_id": "caci", "job_title": "Intelligence Training Instructor", "location": "Virginia Beach, VA", "customer_reference": "NMITC", "command_reference": "Dam Neck", "technology_keywords": "DCGS-N, HUMINT, SIGINT", "labor_category": "Intelligence Analyst", "clearance_required": "TS/SCI", "date_posted": "2026-01-05", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 9, "company_id": "teksynap", "job_title": "Senior Network Administrator", "location": "Virginia Beach, VA", "customer_reference": "Navy", "command_reference": "Little Creek", "technology_keywords": "Windows Server, VMware, ACAS", "labor_category": "IT Admin", "clearance_required": "Secret", "date_posted": "2026-02-20", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 10, "company_id": "general_dynamics_it", "job_title": "Maritime Security Systems Technician", "location": "Virginia Beach, VA", "customer_reference": "NECC", "command_reference": "MSRON", "technology_keywords": "radar, sensors, surveillance", "labor_category": "Technician", "clearance_required": "Secret", "date_posted": "2025-11-15", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 11, "company_id": "kbr", "job_title": "Facilities Manager - Navy Base Operations", "location": "Virginia Beach, VA", "customer_reference": "NAVFAC", "command_reference": "Dam Neck", "technology_keywords": "MAXIMO, facility maintenance", "labor_category": "Facilities Manager", "clearance_required": "Secret", "date_posted": "2026-01-25", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 12, "company_id": "smartronix", "job_title": "Cloud Engineer - DoD Programs", "location": "Virginia Beach, VA", "customer_reference": "Navy Cyber", "command_reference": "CYBERFOR", "technology_keywords": "AWS GovCloud, IL5, DevSecOps", "labor_category": "Cloud Engineer", "clearance_required": "TS/SCI", "date_posted": "2026-02-05", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 13, "company_id": "v2x", "job_title": "Marine Mechanic - Special Operations Craft", "location": "Virginia Beach, VA", "customer_reference": "USSOCOM / NSW", "command_reference": "NSWG-4", "technology_keywords": "Mark V SOC, RHIB, diesel marine", "labor_category": "Mechanic", "clearance_required": "Secret", "date_posted": "2026-01-10", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 14, "company_id": "torch_technologies", "job_title": "M&S Analyst - Naval Special Warfare", "location": "Virginia Beach, VA", "customer_reference": "NSW", "command_reference": "NSWG-2", "technology_keywords": "JLVC, OneSAF, constructive sim", "labor_category": "M&S Analyst", "clearance_required": "TS/SCI", "date_posted": "2025-12-20", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 15, "company_id": "qed_systems", "job_title": "Ship Maintenance Planning Engineer", "location": "Virginia Beach, VA", "customer_reference": "NAVSEA", "command_reference": "NSWCDD DNA", "technology_keywords": "SHIPMAIN, 3M, PMS", "labor_category": "Engineer", "clearance_required": "Secret", "date_posted": "2026-02-28", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 16, "company_id": "anchor_innovation", "job_title": "Craft Master", "location": "Virginia Beach, VA", "customer_reference": "Navy NSW", "command_reference": "NSWG-4", "technology_keywords": "Mark V SOC, RHIB, combatant craft, navigation", "labor_category": "Craft Operator", "clearance_required": "Secret", "date_posted": "2026-02-15", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 17, "company_id": "anchor_innovation", "job_title": "sUSV Fleet Integration Training Instructor", "location": "Virginia Beach, VA", "customer_reference": "Navy expeditionary", "command_reference": "EWTGL", "technology_keywords": "unmanned surface vessel, USV, autonomy, maritime training", "labor_category": "Training Instructor", "clearance_required": "Secret", "date_posted": "2026-01-20", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 18, "company_id": "anchor_innovation", "job_title": "Marine Mechanic - Combatant Craft", "location": "Virginia Beach, VA", "customer_reference": "Navy Special Warfare", "command_reference": "NSWG-4", "technology_keywords": "diesel marine, outboard, hull repair, boat overhaul", "labor_category": "Mechanic", "clearance_required": "Secret", "date_posted": "2026-03-01", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 19, "company_id": "anchor_innovation", "job_title": "Force Protection Maritime Operations Specialist", "location": "Virginia Beach, VA", "customer_reference": "NECC", "command_reference": "NECC", "technology_keywords": "AT/FP, port security, harbor defense, patrol", "labor_category": "Operations Specialist", "clearance_required": "Secret", "date_posted": "2025-12-10", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 20, "company_id": "booz_allen", "job_title": "Expeditionary Warfare Training Analyst", "location": "Virginia Beach, VA", "customer_reference": "Navy NECC", "command_reference": "EWTGL", "technology_keywords": "simulation, LVC, training systems", "labor_category": "Training Specialist", "clearance_required": "Secret", "date_posted": "2026-01-15", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 21, "company_id": "booz_allen", "job_title": "Senior Military Operations Analyst", "location": "Virginia Beach, VA", "customer_reference": "Navy expeditionary", "command_reference": "NECC", "technology_keywords": "CONOPS, TTP, doctrine", "labor_category": "Operations Analyst", "clearance_required": "TS/SCI", "date_posted": "2026-02-01", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 22, "company_id": "leidos", "job_title": "Cybersecurity Engineer - Navy Programs", "location": "Virginia Beach, VA", "customer_reference": "Navy Cyber", "command_reference": "CYBERFOR", "technology_keywords": "SIEM, network defense, RMF", "labor_category": "Cyber Engineer", "clearance_required": "TS/SCI", "date_posted": "2026-01-20", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 23, "company_id": "leidos", "job_title": "Network Engineer III", "location": "Virginia Beach, VA", "customer_reference": "Navy", "command_reference": "Little Creek", "technology_keywords": "Cisco, CANES, ADNS", "labor_category": "Network Engineer", "clearance_required": "Secret", "date_posted": "2026-02-10", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 24, "company_id": "saic", "job_title": "NSW Training Systems Engineer", "location": "Virginia Beach, VA", "customer_reference": "Naval Special Warfare", "command_reference": "NSWG-2", "technology_keywords": "VBS, JTAC, simulation", "labor_category": "Systems Engineer", "clearance_required": "TS/SCI", "date_posted": "2025-12-01", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 25, "company_id": "northrop_grumman", "job_title": "AEGIS Combat Systems Engineer", "location": "Virginia Beach, VA", "customer_reference": "PEO IWS", "command_reference": "Dam Neck", "technology_keywords": "AEGIS, SPY radar, BMD", "labor_category": "Systems Engineer", "clearance_required": "Secret", "date_posted": "2026-02-15", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 26, "company_id": "valkyrie", "job_title": "Combat Systems Integration Engineer", "location": "Virginia Beach, VA", "customer_reference": "NSWCDD DNA", "command_reference": "Dam Neck", "technology_keywords": "combat systems, C6ISR, AEGIS", "labor_category": "Engineer", "clearance_required": "Secret", "date_posted": "2026-03-01", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 27, "company_id": "caci", "job_title": "Intelligence Training Instructor", "location": "Virginia Beach, VA", "customer_reference": "NMITC", "command_reference": "Dam Neck", "technology_keywords": "DCGS-N, HUMINT, SIGINT", "labor_category": "Intelligence Analyst", "clearance_required": "TS/SCI", "date_posted": "2026-01-05", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 28, "company_id": "teksynap", "job_title": "Senior Network Administrator", "location": "Virginia Beach, VA", "customer_reference": "Navy", "command_reference": "Little Creek", "technology_keywords": "Windows Server, VMware, ACAS", "labor_category": "IT Admin", "clearance_required": "Secret", "date_posted": "2026-02-20", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 29, "company_id": "general_dynamics_it", "job_title": "Maritime Security Systems Technician", "location": "Virginia Beach, VA", "customer_reference": "NECC", "command_reference": "MSRON", "technology_keywords": "radar, sensors, surveillance", "labor_category": "Technician", "clearance_required": "Secret", "date_posted": "2025-11-15", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 30, "company_id": "kbr", "job_title": "Facilities Manager - Navy Base Operations", "location": "Virginia Beach, VA", "customer_reference": "NAVFAC", "command_reference": "Dam Neck", "technology_keywords": "MAXIMO, facility maintenance", "labor_category": "Facilities Manager", "clearance_required": "Secret", "date_posted": "2026-01-25", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 31, "company_id": "smartronix", "job_title": "Cloud Engineer - DoD Programs", "location": "Virginia Beach, VA", "customer_reference": "Navy Cyber", "command_reference": "CYBERFOR", "technology_keywords": "AWS GovCloud, IL5, DevSecOps", "labor_category": "Cloud Engineer", "clearance_required": "TS/SCI", "date_posted": "2026-02-05", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 32, "company_id": "v2x", "job_title": "Marine Mechanic - Special Operations Craft", "location": "Virginia Beach, VA", "customer_reference": "USSOCOM / NSW", "command_reference": "NSWG-4", "technology_keywords": "Mark V SOC, RHIB, diesel marine", "labor_category": "Mechanic", "clearance_required": "Secret", "date_posted": "2026-01-10", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 33, "company_id": "torch_technologies", "job_title": "M&S Analyst - Naval Special Warfare", "location": "Virginia Beach, VA", "customer_reference": "NSW", "command_reference": "NSWG-2", "technology_keywords": "JLVC, OneSAF, constructive sim", "labor_category": "M&S Analyst", "clearance_required": "TS/SCI", "date_posted": "2025-12-20", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 34, "company_id": "qed_systems", "job_title": "Ship Maintenance Planning Engineer", "location": "Virginia Beach, VA", "customer_reference": "NAVSEA", "command_reference": "NSWCDD DNA", "technology_keywords": "SHIPMAIN, 3M, PMS", "labor_category": "Engineer", "clearance_required": "Secret", "date_posted": "2026-02-28", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 35, "company_id": "anchor_innovation", "job_title": "Craft Master", "location": "Virginia Beach, VA", "customer_reference": "Navy NSW", "command_reference": "NSWG-4", "technology_keywords": "Mark V SOC, RHIB, combatant craft, navigation", "labor_category": "Craft Operator", "clearance_required": "Secret", "date_posted": "2026-02-15", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 36, "company_id": "anchor_innovation", "job_title": "sUSV Fleet Integration Training Instructor", "location": "Virginia Beach, VA", "customer_reference": "Navy expeditionary", "command_reference": "EWTGL", "technology_keywords": "unmanned surface vessel, USV, autonomy, maritime training", "labor_category": "Training Instructor", "clearance_required": "Secret", "date_posted": "2026-01-20", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 37, "company_id": "anchor_innovation", "job_title": "Marine Mechanic - Combatant Craft", "location": "Virginia Beach, VA", "customer_reference": "Navy Special Warfare", "command_reference": "NSWG-4", "technology_keywords": "diesel marine, outboard, hull repair, boat overhaul", "labor_category": "Mechanic", "clearance_required": "Secret", "date_posted": "2026-03-01", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 38, "company_id": "anchor_innovation", "job_title": "Force Protection Maritime Operations Specialist", "location": "Virginia Beach, VA", "customer_reference": "NECC", "command_reference": "NECC", "technology_keywords": "AT/FP, port security, harbor defense, patrol", "labor_category": "Operations Specialist", "clearance_required": "Secret", "date_posted": "2025-12-10", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 39, "company_id": "disc_cobham_advanced_electronic_solutions", "job_title": "RF Engineer - Navy EW Systems", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NSWCDD DNA", "technology_keywords": "electronic warfare, RF, countermeasures, Dam Neck", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 40, "company_id": "disc_decisive_point_consulting", "job_title": "SOF Operations Analyst", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NSWG-2", "technology_keywords": "special operations, NSW, CONOPS, Little Creek", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 41, "company_id": "disc_decisive_point_consulting", "job_title": "NSW Training Developer", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NSWG-2", "technology_keywords": "curriculum, training, Naval Special Warfare", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 42, "company_id": "disc_k2_group", "job_title": "NSW Program Manager", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NSWG-2", "technology_keywords": "Naval Special Warfare, program management, SOF", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 43, "company_id": "disc_k2_group", "job_title": "SEAL Training Support Specialist", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NSWG-2", "technology_keywords": "SEAL, training, readiness, Virginia Beach", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "company_careers", "raw_text": null}, {"id": 44, "company_id": "disc_applied_research_associates", "job_title": "Explosive Ordnance Disposal Analyst", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NECC", "technology_keywords": "EOD, IED, counter-mine, expeditionary", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 45, "company_id": "disc_trideum_corporation", "job_title": "LVC Simulation Engineer", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "EWTGL", "technology_keywords": "live virtual constructive, simulation, expeditionary training", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 46, "company_id": "disc_strategic_operational_solutions", "job_title": "Maritime Security Advisor", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "MSRON", "technology_keywords": "harbor defense, port security, maritime, NECC", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 47, "company_id": "disc_strategic_operational_solutions", "job_title": "Coastal Riverine Operations SME", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "RIVRON", "technology_keywords": "riverine, coastal patrol, expeditionary", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 48, "company_id": "disc_dignitas_technologies", "job_title": "Modeling & Simulation Developer", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NSWCDD DNA", "technology_keywords": "M&S, combat systems, simulation, Dam Neck", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 49, "company_id": "disc_gray_tier_technologies", "job_title": "Cyber Operations Specialist", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "CYBERFOR", "technology_keywords": "offensive cyber, CNO, Navy cyber, Little Creek", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 50, "company_id": "disc_prevailance_inc", "job_title": "ISR Analyst - Navy Programs", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "CYBERFOR", "technology_keywords": "ISR, intelligence, surveillance, reconnaissance", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 51, "company_id": "disc_prevailance_inc", "job_title": "SIGINT Systems Engineer", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "CYBERFOR", "technology_keywords": "SIGINT, EW, signals intelligence, Navy", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 52, "company_id": "disc_ecs_federal", "job_title": "Cloud Security Engineer", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "CYBERFOR", "technology_keywords": "AWS GovCloud, IL5, STIG, Navy networks", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "Indeed", "raw_text": null}, {"id": 53, "company_id": "disc_global_defense___national_security_systems", "job_title": "AEGIS Fire Control Technician", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "CDSA", "technology_keywords": "AEGIS, fire control, SPY radar, combat direction", "labor_category": null, "clearance_required": "Secret", "date_posted": "2026-03-11", "source_url": null, "source_platform": "ClearanceJobs", "raw_text": null}, {"id": 54, "company_id": "disc_velos", "job_title": "Navy Intelligence Instructor", "location": "Virginia Beach, VA", "customer_reference": null, "command_reference": "NMITC", "technology_keywords": "intelligence training, NMITC, Dam Neck, DCGS-N", "labor_category": null, "clearance_required": "TS/SCI", "date_posted": "2026-03-11", "source_url": null, "source_platform": "Indeed", "raw_text": null}], "correlations": [{"id": 1, "workforce_signal_id": 1, "contract_id": "curated_necc_training", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:EWTGL\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 2, "workforce_signal_id": 2, "contract_id": "curated_necc_training", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 3, "workforce_signal_id": 3, "contract_id": "curated_cyberfor_it", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 4, "workforce_signal_id": 4, "contract_id": "curated_cyberfor_it", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 5, "workforce_signal_id": 5, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:NSWG-2\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 6, "workforce_signal_id": 6, "contract_id": "curated_cdsa_aegis", "confidence_score": 0.62, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 7, "workforce_signal_id": 7, "contract_id": "curated_valkyrie_dna_2026", "confidence_score": 0.69, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 8, "workforce_signal_id": 8, "contract_id": "curated_nmitc_intel_training", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 9, "workforce_signal_id": 9, "contract_id": "curated_cyberfor_it", "confidence_score": 0.5, "evidence": "[\"company_is_sub\", \"location_match\", \"date_within_pop\"]"}, {"id": 10, "workforce_signal_id": 10, "contract_id": "curated_msron_security", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:MSRON\", \"location_match\", \"date_within_pop\"]"}, {"id": 11, "workforce_signal_id": 11, "contract_id": "curated_dam_neck_facilities", "confidence_score": 0.62, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 12, "workforce_signal_id": 12, "contract_id": "curated_cyberfor_it", "confidence_score": 0.75, "evidence": "[\"company_is_sub\", \"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 13, "workforce_signal_id": 13, "contract_id": "curated_nswg4_soc_maint", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"date_within_pop\"]"}, {"id": 14, "workforce_signal_id": 14, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.75, "evidence": "[\"company_is_sub\", \"command_match:NSWG-2\", \"location_match\", \"date_within_pop\"]"}, {"id": 15, "workforce_signal_id": 15, "contract_id": "curated_qed_383m", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWCDD DNA\", \"location_match\", \"date_within_pop\"]"}, {"id": 16, "workforce_signal_id": 16, "contract_id": "curated_anchor_seaport_nxg", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 17, "workforce_signal_id": 17, "contract_id": "curated_anchor_usv_training", "confidence_score": 0.94, "evidence": "[\"company_is_prime\", \"command_match:EWTGL\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 18, "workforce_signal_id": 18, "contract_id": "curated_anchor_seaport_nxg", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"date_within_pop\"]"}, {"id": 19, "workforce_signal_id": 19, "contract_id": "curated_anchor_necc_forceprotect", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NECC\", \"location_match\", \"date_within_pop\"]"}, {"id": 20, "workforce_signal_id": 1, "contract_id": "curated_necc_training", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:EWTGL\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 21, "workforce_signal_id": 2, "contract_id": "curated_necc_training", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 22, "workforce_signal_id": 3, "contract_id": "curated_cyberfor_it", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 23, "workforce_signal_id": 4, "contract_id": "curated_cyberfor_it", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 24, "workforce_signal_id": 5, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:NSWG-2\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 25, "workforce_signal_id": 6, "contract_id": "curated_cdsa_aegis", "confidence_score": 0.62, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 26, "workforce_signal_id": 7, "contract_id": "curated_valkyrie_dna_2026", "confidence_score": 0.69, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 27, "workforce_signal_id": 8, "contract_id": "curated_nmitc_intel_training", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 28, "workforce_signal_id": 9, "contract_id": "curated_cyberfor_it", "confidence_score": 0.5, "evidence": "[\"company_is_sub\", \"location_match\", \"date_within_pop\"]"}, {"id": 29, "workforce_signal_id": 10, "contract_id": "curated_msron_security", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:MSRON\", \"location_match\", \"date_within_pop\"]"}, {"id": 30, "workforce_signal_id": 11, "contract_id": "curated_dam_neck_facilities", "confidence_score": 0.62, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 31, "workforce_signal_id": 12, "contract_id": "curated_cyberfor_it", "confidence_score": 0.75, "evidence": "[\"company_is_sub\", \"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 32, "workforce_signal_id": 13, "contract_id": "curated_nswg4_soc_maint", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"date_within_pop\"]"}, {"id": 33, "workforce_signal_id": 14, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.75, "evidence": "[\"company_is_sub\", \"command_match:NSWG-2\", \"location_match\", \"date_within_pop\"]"}, {"id": 34, "workforce_signal_id": 15, "contract_id": "curated_qed_383m", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWCDD DNA\", \"location_match\", \"date_within_pop\"]"}, {"id": 35, "workforce_signal_id": 16, "contract_id": "curated_anchor_seaport_nxg", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 36, "workforce_signal_id": 17, "contract_id": "curated_anchor_usv_training", "confidence_score": 0.94, "evidence": "[\"company_is_prime\", \"command_match:EWTGL\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 37, "workforce_signal_id": 18, "contract_id": "curated_anchor_seaport_nxg", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"date_within_pop\"]"}, {"id": 38, "workforce_signal_id": 19, "contract_id": "curated_anchor_necc_forceprotect", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NECC\", \"location_match\", \"date_within_pop\"]"}, {"id": 39, "workforce_signal_id": 20, "contract_id": "curated_necc_training", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:EWTGL\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 40, "workforce_signal_id": 21, "contract_id": "curated_necc_training", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 41, "workforce_signal_id": 22, "contract_id": "curated_cyberfor_it", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 42, "workforce_signal_id": 23, "contract_id": "curated_cyberfor_it", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 43, "workforce_signal_id": 24, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:NSWG-2\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 44, "workforce_signal_id": 25, "contract_id": "curated_cdsa_aegis", "confidence_score": 0.62, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 45, "workforce_signal_id": 26, "contract_id": "curated_valkyrie_dna_2026", "confidence_score": 0.69, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 46, "workforce_signal_id": 27, "contract_id": "curated_nmitc_intel_training", "confidence_score": 0.55, "evidence": "[\"company_is_prime\", \"location_match\", \"date_within_pop\"]"}, {"id": 47, "workforce_signal_id": 28, "contract_id": "curated_cyberfor_it", "confidence_score": 0.5, "evidence": "[\"company_is_sub\", \"location_match\", \"date_within_pop\"]"}, {"id": 48, "workforce_signal_id": 29, "contract_id": "curated_msron_security", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:MSRON\", \"location_match\", \"date_within_pop\"]"}, {"id": 49, "workforce_signal_id": 30, "contract_id": "curated_dam_neck_facilities", "confidence_score": 0.62, "evidence": "[\"company_is_prime\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 50, "workforce_signal_id": 31, "contract_id": "curated_cyberfor_it", "confidence_score": 0.75, "evidence": "[\"company_is_sub\", \"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 51, "workforce_signal_id": 32, "contract_id": "curated_nswg4_soc_maint", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"date_within_pop\"]"}, {"id": 52, "workforce_signal_id": 33, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.75, "evidence": "[\"company_is_sub\", \"command_match:NSWG-2\", \"location_match\", \"date_within_pop\"]"}, {"id": 53, "workforce_signal_id": 34, "contract_id": "curated_qed_383m", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWCDD DNA\", \"location_match\", \"date_within_pop\"]"}, {"id": 54, "workforce_signal_id": 35, "contract_id": "curated_anchor_seaport_nxg", "confidence_score": 0.87, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 55, "workforce_signal_id": 36, "contract_id": "curated_anchor_usv_training", "confidence_score": 0.94, "evidence": "[\"company_is_prime\", \"command_match:EWTGL\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 56, "workforce_signal_id": 37, "contract_id": "curated_anchor_seaport_nxg", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NSWG-4\", \"location_match\", \"date_within_pop\"]"}, {"id": 57, "workforce_signal_id": 38, "contract_id": "curated_anchor_necc_forceprotect", "confidence_score": 0.8, "evidence": "[\"company_is_prime\", \"command_match:NECC\", \"location_match\", \"date_within_pop\"]"}, {"id": 58, "workforce_signal_id": 39, "contract_id": "curated_valkyrie_dna_2026", "confidence_score": 0.52, "evidence": "[\"command_match:NSWCDD DNA\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 59, "workforce_signal_id": 40, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.52, "evidence": "[\"command_match:NSWG-2\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 60, "workforce_signal_id": 41, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.52, "evidence": "[\"command_match:NSWG-2\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 61, "workforce_signal_id": 42, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.45, "evidence": "[\"command_match:NSWG-2\", \"location_match\", \"date_within_pop\"]"}, {"id": 62, "workforce_signal_id": 43, "contract_id": "curated_nsw_training_saic", "confidence_score": 0.52, "evidence": "[\"command_match:NSWG-2\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 63, "workforce_signal_id": 44, "contract_id": "curated_necc_base_ops", "confidence_score": 0.45, "evidence": "[\"command_match:NECC\", \"location_match\", \"date_within_pop\"]"}, {"id": 64, "workforce_signal_id": 45, "contract_id": "curated_necc_training", "confidence_score": 0.52, "evidence": "[\"command_match:EWTGL\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 65, "workforce_signal_id": 46, "contract_id": "curated_msron_security", "confidence_score": 0.52, "evidence": "[\"command_match:MSRON\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 66, "workforce_signal_id": 48, "contract_id": "curated_valkyrie_dna_2026", "confidence_score": 0.59, "evidence": "[\"command_match:NSWCDD DNA\", \"location_match\", \"tech_overlap:2\", \"date_within_pop\"]"}, {"id": 67, "workforce_signal_id": 49, "contract_id": "curated_cyberfor_it", "confidence_score": 0.45, "evidence": "[\"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 68, "workforce_signal_id": 50, "contract_id": "curated_cyberfor_it", "confidence_score": 0.45, "evidence": "[\"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 69, "workforce_signal_id": 51, "contract_id": "curated_cyberfor_it", "confidence_score": 0.45, "evidence": "[\"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 70, "workforce_signal_id": 52, "contract_id": "curated_cyberfor_it", "confidence_score": 0.45, "evidence": "[\"command_match:CYBERFOR\", \"location_match\", \"date_within_pop\"]"}, {"id": 71, "workforce_signal_id": 53, "contract_id": "curated_cdsa_aegis", "confidence_score": 0.52, "evidence": "[\"command_match:CDSA\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}, {"id": 72, "workforce_signal_id": 54, "contract_id": "curated_nmitc_intel_training", "confidence_score": 0.52, "evidence": "[\"command_match:NMITC\", \"location_match\", \"tech_overlap:1\", \"date_within_pop\"]"}], "edges": [{"id": 88, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "necc", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 89, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "nswg2", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 90, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "st2", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 91, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "st4", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 92, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "st10", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 93, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "st18", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 94, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "nswg4", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 95, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "ewtgl", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 96, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "cyberfor", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 97, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "acb2", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 98, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "bmu2", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 99, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "ncd2", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 100, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "msron", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 101, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "rivron", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 102, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "11trans", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 103, "source_type": "installation", "source_id": "jeblcfs", "target_type": "command", "target_id": "navscmus", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 104, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "devgru", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 105, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "nswcdd_dna", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 106, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "cdsa", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 107, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "tactragrulant", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 108, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "nmitc", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 109, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "tsc_hr", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 110, "source_type": "installation", "source_id": "dam_neck", "target_type": "command", "target_id": "nexwdc", "relationship": "hosts", "weight": 1.0, "metadata": null}, {"id": 111, "source_type": "command", "source_id": "nswcdd_dna", "target_type": "contract", "target_id": "curated_valkyrie_dna_2026", "relationship": "awards", "weight": 0.96, "metadata": null}, {"id": 112, "source_type": "command", "source_id": "nswcdd_dna", "target_type": "contract", "target_id": "curated_qed_383m", "relationship": "awards", "weight": 7.66, "metadata": null}, {"id": 113, "source_type": "command", "source_id": "nswcdd_dna", "target_type": "contract", "target_id": "curated_vt_milcom_1b", "relationship": "awards", "weight": 10.0, "metadata": null}, {"id": 114, "source_type": "command", "source_id": "necc", "target_type": "contract", "target_id": "curated_necc_base_ops", "relationship": "awards", "weight": 1.7, "metadata": null}, {"id": 115, "source_type": "command", "source_id": "ewtgl", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "awards", "weight": 2.4, "metadata": null}, {"id": 116, "source_type": "command", "source_id": "cyberfor", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "awards", "weight": 5.0, "metadata": null}, {"id": 117, "source_type": "command", "source_id": "nswg2", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "awards", "weight": 1.9, "metadata": null}, {"id": 118, "source_type": "command", "source_id": "cdsa", "target_type": "contract", "target_id": "curated_cdsa_aegis", "relationship": "awards", "weight": 6.2, "metadata": null}, {"id": 119, "source_type": "command", "source_id": "nmitc", "target_type": "contract", "target_id": "curated_nmitc_intel_training", "relationship": "awards", "weight": 1.3, "metadata": null}, {"id": 120, "source_type": "command", "source_id": "tsc_hr", "target_type": "contract", "target_id": "curated_dam_neck_facilities", "relationship": "awards", "weight": 1.44, "metadata": null}, {"id": 121, "source_type": "command", "source_id": "msron", "target_type": "contract", "target_id": "curated_msron_security", "relationship": "awards", "weight": 0.84, "metadata": null}, {"id": 122, "source_type": "command", "source_id": "nswg4", "target_type": "contract", "target_id": "curated_nswg4_soc_maint", "relationship": "awards", "weight": 1.16, "metadata": null}, {"id": 123, "source_type": "command", "source_id": "nswg4", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "awards", "weight": 0.24, "metadata": null}, {"id": 124, "source_type": "command", "source_id": "ewtgl", "target_type": "contract", "target_id": "curated_anchor_usv_training", "relationship": "awards", "weight": 0.17, "metadata": null}, {"id": 125, "source_type": "command", "source_id": "necc", "target_type": "contract", "target_id": "curated_anchor_necc_forceprotect", "relationship": "awards", "weight": 0.12, "metadata": null}, {"id": 126, "source_type": "contract", "source_id": "curated_valkyrie_dna_2026", "target_type": "company", "target_id": "valkyrie", "relationship": "awarded_to", "weight": 0.96, "metadata": null}, {"id": 127, "source_type": "contract", "source_id": "curated_qed_383m", "target_type": "company", "target_id": "qed_systems", "relationship": "awarded_to", "weight": 7.66, "metadata": null}, {"id": 128, "source_type": "contract", "source_id": "curated_vt_milcom_1b", "target_type": "company", "target_id": "vt_milcom", "relationship": "awarded_to", "weight": 10.0, "metadata": null}, {"id": 129, "source_type": "contract", "source_id": "curated_necc_base_ops", "target_type": "company", "target_id": "serco", "relationship": "awarded_to", "weight": 1.7, "metadata": null}, {"id": 130, "source_type": "contract", "source_id": "curated_necc_training", "target_type": "company", "target_id": "booz_allen", "relationship": "awarded_to", "weight": 2.4, "metadata": null}, {"id": 131, "source_type": "contract", "source_id": "curated_cyberfor_it", "target_type": "company", "target_id": "leidos", "relationship": "awarded_to", "weight": 5.0, "metadata": null}, {"id": 132, "source_type": "contract", "source_id": "curated_nsw_training_saic", "target_type": "company", "target_id": "saic", "relationship": "awarded_to", "weight": 1.9, "metadata": null}, {"id": 133, "source_type": "contract", "source_id": "curated_cdsa_aegis", "target_type": "company", "target_id": "northrop_grumman", "relationship": "awarded_to", "weight": 6.2, "metadata": null}, {"id": 134, "source_type": "contract", "source_id": "curated_nmitc_intel_training", "target_type": "company", "target_id": "caci", "relationship": "awarded_to", "weight": 1.3, "metadata": null}, {"id": 135, "source_type": "contract", "source_id": "curated_dam_neck_facilities", "target_type": "company", "target_id": "kbr", "relationship": "awarded_to", "weight": 1.44, "metadata": null}, {"id": 136, "source_type": "contract", "source_id": "curated_msron_security", "target_type": "company", "target_id": "general_dynamics_it", "relationship": "awarded_to", "weight": 0.84, "metadata": null}, {"id": 137, "source_type": "contract", "source_id": "curated_nswg4_soc_maint", "target_type": "company", "target_id": "v2x", "relationship": "awarded_to", "weight": 1.16, "metadata": null}, {"id": 138, "source_type": "contract", "source_id": "curated_anchor_seaport_nxg", "target_type": "company", "target_id": "anchor_innovation", "relationship": "awarded_to", "weight": 0.24, "metadata": null}, {"id": 139, "source_type": "contract", "source_id": "curated_anchor_usv_training", "target_type": "company", "target_id": "anchor_innovation", "relationship": "awarded_to", "weight": 0.17, "metadata": null}, {"id": 140, "source_type": "contract", "source_id": "curated_anchor_necc_forceprotect", "target_type": "company", "target_id": "anchor_innovation", "relationship": "awarded_to", "weight": 0.12, "metadata": null}, {"id": 141, "source_type": "company", "source_id": "booz_allen", "target_type": "company", "target_id": "mayvin", "relationship": "subcontracts_to", "weight": 1.2, "metadata": null}, {"id": 142, "source_type": "company", "source_id": "booz_allen", "target_type": "company", "target_id": "insignia_federal", "relationship": "subcontracts_to", "weight": 0.85, "metadata": null}, {"id": 143, "source_type": "company", "source_id": "leidos", "target_type": "company", "target_id": "teksynap", "relationship": "subcontracts_to", "weight": 1.8, "metadata": null}, {"id": 144, "source_type": "company", "source_id": "leidos", "target_type": "company", "target_id": "smartronix", "relationship": "subcontracts_to", "weight": 2.2, "metadata": null}, {"id": 145, "source_type": "company", "source_id": "saic", "target_type": "company", "target_id": "torch_technologies", "relationship": "subcontracts_to", "weight": 0.95, "metadata": null}, {"id": 146, "source_type": "company", "source_id": "saic", "target_type": "company", "target_id": "colsa", "relationship": "subcontracts_to", "weight": 0.7, "metadata": null}, {"id": 147, "source_type": "company", "source_id": "northrop_grumman", "target_type": "company", "target_id": "valkyrie", "relationship": "subcontracts_to", "weight": 2.8, "metadata": null}, {"id": 148, "source_type": "company", "source_id": "northrop_grumman", "target_type": "company", "target_id": "qed_systems", "relationship": "subcontracts_to", "weight": 1.5, "metadata": null}, {"id": 149, "source_type": "company", "source_id": "caci", "target_type": "company", "target_id": "vre_systems", "relationship": "subcontracts_to", "weight": 0.5, "metadata": null}, {"id": 150, "source_type": "company", "source_id": "kbr", "target_type": "company", "target_id": "jacobs", "relationship": "subcontracts_to", "weight": 1.2, "metadata": null}, {"id": 151, "source_type": "company", "source_id": "vt_milcom", "target_type": "company", "target_id": "l3harris", "relationship": "subcontracts_to", "weight": 5.0, "metadata": null}, {"id": 152, "source_type": "company", "source_id": "v2x", "target_type": "company", "target_id": "valkyrie", "relationship": "subcontracts_to", "weight": 0.8, "metadata": null}, {"id": 153, "source_type": "company", "source_id": "v2x", "target_type": "company", "target_id": "anchor_innovation", "relationship": "subcontracts_to", "weight": 0.65, "metadata": null}, {"id": 154, "source_type": "company", "source_id": "saic", "target_type": "company", "target_id": "anchor_innovation", "relationship": "subcontracts_to", "weight": 0.4, "metadata": null}, {"id": 155, "source_type": "company", "source_id": "booz_allen", "target_type": "company", "target_id": "anchor_innovation", "relationship": "subcontracts_to", "weight": 0.35, "metadata": null}, {"id": 156, "source_type": "company", "source_id": "booz_allen", "target_type": "company", "target_id": "mayvin", "relationship": "subcontracts_to", "weight": 1.2, "metadata": null}, {"id": 157, "source_type": "company", "source_id": "booz_allen", "target_type": "company", "target_id": "insignia_federal", "relationship": "subcontracts_to", "weight": 0.85, "metadata": null}, {"id": 158, "source_type": "company", "source_id": "leidos", "target_type": "company", "target_id": "teksynap", "relationship": "subcontracts_to", "weight": 1.8, "metadata": null}, {"id": 159, "source_type": "company", "source_id": "leidos", "target_type": "company", "target_id": "smartronix", "relationship": "subcontracts_to", "weight": 2.2, "metadata": null}, {"id": 160, "source_type": "company", "source_id": "saic", "target_type": "company", "target_id": "torch_technologies", "relationship": "subcontracts_to", "weight": 0.95, "metadata": null}, {"id": 161, "source_type": "company", "source_id": "saic", "target_type": "company", "target_id": "colsa", "relationship": "subcontracts_to", "weight": 0.7, "metadata": null}, {"id": 162, "source_type": "company", "source_id": "northrop_grumman", "target_type": "company", "target_id": "valkyrie", "relationship": "subcontracts_to", "weight": 2.8, "metadata": null}, {"id": 163, "source_type": "company", "source_id": "northrop_grumman", "target_type": "company", "target_id": "qed_systems", "relationship": "subcontracts_to", "weight": 1.5, "metadata": null}, {"id": 164, "source_type": "company", "source_id": "caci", "target_type": "company", "target_id": "vre_systems", "relationship": "subcontracts_to", "weight": 0.5, "metadata": null}, {"id": 165, "source_type": "company", "source_id": "kbr", "target_type": "company", "target_id": "jacobs", "relationship": "subcontracts_to", "weight": 1.2, "metadata": null}, {"id": 166, "source_type": "company", "source_id": "vt_milcom", "target_type": "company", "target_id": "l3harris", "relationship": "subcontracts_to", "weight": 5.0, "metadata": null}, {"id": 167, "source_type": "company", "source_id": "v2x", "target_type": "company", "target_id": "valkyrie", "relationship": "subcontracts_to", "weight": 0.8, "metadata": null}, {"id": 168, "source_type": "company", "source_id": "v2x", "target_type": "company", "target_id": "anchor_innovation", "relationship": "subcontracts_to", "weight": 0.65, "metadata": null}, {"id": 169, "source_type": "company", "source_id": "saic", "target_type": "company", "target_id": "anchor_innovation", "relationship": "subcontracts_to", "weight": 0.4, "metadata": null}, {"id": 170, "source_type": "company", "source_id": "booz_allen", "target_type": "company", "target_id": "anchor_innovation", "relationship": "subcontracts_to", "weight": 0.35, "metadata": null}, {"id": 171, "source_type": "company", "source_id": "booz_allen", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 172, "source_type": "company", "source_id": "booz_allen", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 173, "source_type": "company", "source_id": "leidos", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 174, "source_type": "company", "source_id": "leidos", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 175, "source_type": "company", "source_id": "saic", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 176, "source_type": "company", "source_id": "northrop_grumman", "target_type": "contract", "target_id": "curated_cdsa_aegis", "relationship": "staffs", "weight": 0.62, "metadata": null}, {"id": 177, "source_type": "company", "source_id": "valkyrie", "target_type": "contract", "target_id": "curated_valkyrie_dna_2026", "relationship": "staffs", "weight": 0.69, "metadata": null}, {"id": 178, "source_type": "company", "source_id": "caci", "target_type": "contract", "target_id": "curated_nmitc_intel_training", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 179, "source_type": "company", "source_id": "teksynap", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.5, "metadata": null}, {"id": 180, "source_type": "company", "source_id": "general_dynamics_it", "target_type": "contract", "target_id": "curated_msron_security", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 181, "source_type": "company", "source_id": "kbr", "target_type": "contract", "target_id": "curated_dam_neck_facilities", "relationship": "staffs", "weight": 0.62, "metadata": null}, {"id": 182, "source_type": "company", "source_id": "smartronix", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.75, "metadata": null}, {"id": 183, "source_type": "company", "source_id": "v2x", "target_type": "contract", "target_id": "curated_nswg4_soc_maint", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 184, "source_type": "company", "source_id": "torch_technologies", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.75, "metadata": null}, {"id": 185, "source_type": "company", "source_id": "qed_systems", "target_type": "contract", "target_id": "curated_qed_383m", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 186, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 187, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_usv_training", "relationship": "staffs", "weight": 0.94, "metadata": null}, {"id": 188, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 189, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_necc_forceprotect", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 190, "source_type": "company", "source_id": "booz_allen", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 191, "source_type": "company", "source_id": "booz_allen", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 192, "source_type": "company", "source_id": "leidos", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 193, "source_type": "company", "source_id": "leidos", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 194, "source_type": "company", "source_id": "saic", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 195, "source_type": "company", "source_id": "northrop_grumman", "target_type": "contract", "target_id": "curated_cdsa_aegis", "relationship": "staffs", "weight": 0.62, "metadata": null}, {"id": 196, "source_type": "company", "source_id": "valkyrie", "target_type": "contract", "target_id": "curated_valkyrie_dna_2026", "relationship": "staffs", "weight": 0.69, "metadata": null}, {"id": 197, "source_type": "company", "source_id": "caci", "target_type": "contract", "target_id": "curated_nmitc_intel_training", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 198, "source_type": "company", "source_id": "teksynap", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.5, "metadata": null}, {"id": 199, "source_type": "company", "source_id": "general_dynamics_it", "target_type": "contract", "target_id": "curated_msron_security", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 200, "source_type": "company", "source_id": "kbr", "target_type": "contract", "target_id": "curated_dam_neck_facilities", "relationship": "staffs", "weight": 0.62, "metadata": null}, {"id": 201, "source_type": "company", "source_id": "smartronix", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.75, "metadata": null}, {"id": 202, "source_type": "company", "source_id": "v2x", "target_type": "contract", "target_id": "curated_nswg4_soc_maint", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 203, "source_type": "company", "source_id": "torch_technologies", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.75, "metadata": null}, {"id": 204, "source_type": "company", "source_id": "qed_systems", "target_type": "contract", "target_id": "curated_qed_383m", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 205, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 206, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_usv_training", "relationship": "staffs", "weight": 0.94, "metadata": null}, {"id": 207, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 208, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_necc_forceprotect", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 209, "source_type": "company", "source_id": "booz_allen", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 210, "source_type": "company", "source_id": "booz_allen", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 211, "source_type": "company", "source_id": "leidos", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 212, "source_type": "company", "source_id": "leidos", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 213, "source_type": "company", "source_id": "saic", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 214, "source_type": "company", "source_id": "northrop_grumman", "target_type": "contract", "target_id": "curated_cdsa_aegis", "relationship": "staffs", "weight": 0.62, "metadata": null}, {"id": 215, "source_type": "company", "source_id": "valkyrie", "target_type": "contract", "target_id": "curated_valkyrie_dna_2026", "relationship": "staffs", "weight": 0.69, "metadata": null}, {"id": 216, "source_type": "company", "source_id": "caci", "target_type": "contract", "target_id": "curated_nmitc_intel_training", "relationship": "staffs", "weight": 0.55, "metadata": null}, {"id": 217, "source_type": "company", "source_id": "teksynap", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.5, "metadata": null}, {"id": 218, "source_type": "company", "source_id": "general_dynamics_it", "target_type": "contract", "target_id": "curated_msron_security", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 219, "source_type": "company", "source_id": "kbr", "target_type": "contract", "target_id": "curated_dam_neck_facilities", "relationship": "staffs", "weight": 0.62, "metadata": null}, {"id": 220, "source_type": "company", "source_id": "smartronix", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.75, "metadata": null}, {"id": 221, "source_type": "company", "source_id": "v2x", "target_type": "contract", "target_id": "curated_nswg4_soc_maint", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 222, "source_type": "company", "source_id": "torch_technologies", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.75, "metadata": null}, {"id": 223, "source_type": "company", "source_id": "qed_systems", "target_type": "contract", "target_id": "curated_qed_383m", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 224, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "staffs", "weight": 0.87, "metadata": null}, {"id": 225, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_usv_training", "relationship": "staffs", "weight": 0.94, "metadata": null}, {"id": 226, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_seaport_nxg", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 227, "source_type": "company", "source_id": "anchor_innovation", "target_type": "contract", "target_id": "curated_anchor_necc_forceprotect", "relationship": "staffs", "weight": 0.8, "metadata": null}, {"id": 228, "source_type": "company", "source_id": "disc_cobham_advanced_electronic_solutions", "target_type": "contract", "target_id": "curated_valkyrie_dna_2026", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 229, "source_type": "company", "source_id": "disc_decisive_point_consulting", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 230, "source_type": "company", "source_id": "disc_decisive_point_consulting", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 231, "source_type": "company", "source_id": "disc_k2_group", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.45, "metadata": null}, {"id": 232, "source_type": "company", "source_id": "disc_k2_group", "target_type": "contract", "target_id": "curated_nsw_training_saic", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 233, "source_type": "company", "source_id": "disc_applied_research_associates", "target_type": "contract", "target_id": "curated_necc_base_ops", "relationship": "staffs", "weight": 0.45, "metadata": null}, {"id": 234, "source_type": "company", "source_id": "disc_trideum_corporation", "target_type": "contract", "target_id": "curated_necc_training", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 235, "source_type": "company", "source_id": "disc_strategic_operational_solutions", "target_type": "contract", "target_id": "curated_msron_security", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 236, "source_type": "company", "source_id": "disc_dignitas_technologies", "target_type": "contract", "target_id": "curated_valkyrie_dna_2026", "relationship": "staffs", "weight": 0.59, "metadata": null}, {"id": 237, "source_type": "company", "source_id": "disc_gray_tier_technologies", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.45, "metadata": null}, {"id": 238, "source_type": "company", "source_id": "disc_prevailance_inc", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.45, "metadata": null}, {"id": 239, "source_type": "company", "source_id": "disc_prevailance_inc", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.45, "metadata": null}, {"id": 240, "source_type": "company", "source_id": "disc_ecs_federal", "target_type": "contract", "target_id": "curated_cyberfor_it", "relationship": "staffs", "weight": 0.45, "metadata": null}, {"id": 241, "source_type": "company", "source_id": "disc_global_defense___national_security_systems", "target_type": "contract", "target_id": "curated_cdsa_aegis", "relationship": "staffs", "weight": 0.52, "metadata": null}, {"id": 242, "source_type": "company", "source_id": "disc_velos", "target_type": "contract", "target_id": "curated_nmitc_intel_training", "relationship": "staffs", "weight": 0.52, "metadata": null}], "summary": {"total_installations": 4, "total_commands": 23, "total_contracts": 15, "total_companies": 54, "total_subcontracts": 30, "total_workforce_signals": 54, "total_correlations": 72, "total_contract_value": 2678090000.0, "contracts_expiring_24mo": 3}};
+
+// ── LOOKUPS ──
+const LU={inst:{},cmd:{},con:{},comp:{}};
+DATA.installations.forEach(i=>LU.inst[i.id]=i);
+DATA.commands.forEach(c=>LU.cmd[c.id]=c);
+DATA.contracts.forEach(c=>LU.con[c.id]=c);
+DATA.companies.forEach(c=>LU.comp[c.id]=c);
+
+// ── GOVCON SET-ASIDE POINTS ──
+const SET_ASIDE_MAP={
+  'Small Business (SDVOSB)':['SDVOSB','Small Business'],
+  'Small Business (8a)':['8(a)','Small Business'],
+  'Small Business (HUBZone)':['HUBZone','Small Business'],
+  'Small Business':['Small Business'],
+  'Small Business Prime':['Small Business'],
+  'Mid-Tier':[], 'Large Prime':[]
+};
+function getSetAsides(comp){
+  if(!comp) return [];
+  return SET_ASIDE_MAP[comp.company_type] || (comp.small_business?['Small Business']:[]);
+}
+function setAsideBadges(comp){
+  return getSetAsides(comp).map(s=>`<span class="badge badge-sa">${s}</span>`).join('');
+}
+
+// ── HELPERS ──
+function FM(v){if(!v&&v!==0)return'$0';if(v>=1e9)return'$'+(v/1e9).toFixed(2)+'B';if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';return'$'+v.toFixed(0);}
+function CN(id){return LU.comp[id]?.name||id||'—';}
+function CM(id){return LU.cmd[id]?.abbreviation||LU.cmd[id]?.name||id||'—';}
+function monthsUntil(d){if(!d)return 999;return(new Date(d)-new Date())/(1000*60*60*24*30);}
+function expColor(m){return m<=6?'var(--red)':m<=12?'var(--orange)':m<=24?'var(--yellow)':'var(--green)';}
+function expClass(m){return m<=6?'exp-red':m<=12?'exp-orange':m<=24?'exp-yellow':'exp-green';}
+function getInstCoords(iid){const i=LU.inst[iid];return i?[i.lat,i.lon]:[36.88,-76.10];}
+function contractsByCmd(cid){return DATA.contracts.filter(c=>c.command_id===cid);}
+function subsForContract(cid){return DATA.subcontracts.filter(s=>s.contract_id===cid);}
+function signalsForCompany(cid){return DATA.workforce_signals.filter(s=>s.company_id===cid);}
+function cogScore(c){const subs=subsForContract(c.id);const sigs=DATA.workforce_signals.filter(s=>s.company_id===c.prime_contractor_id);return(c.award_amount||0)/1e6*0.4+subs.length*15+sigs.length*10;}
+// Reverse subs: large companies subbing under this small company
+function reverseSubsFor(compId){
+  // Find subcontracts where compId is the PRIME and the sub is a Large Prime
+  return DATA.subcontracts.filter(s=>s.prime_contractor_id===compId).map(s=>{
+    const sub=LU.comp[s.subcontractor_id];
+    return sub?{...s,subCompany:sub}:null;
+  }).filter(Boolean);
+}
+// Companies subbing TO this company (this company is the sub, who are the primes?)
+function primesAbove(compId){
+  return DATA.subcontracts.filter(s=>s.subcontractor_id===compId).map(s=>({...s,primeCompany:LU.comp[s.prime_contractor_id]})).filter(s=>s.primeCompany);
+}
+// Large primes subbing under small biz
+function largePrimesSubbingUnder(compId){
+  const co=LU.comp[compId];
+  if(!co||!co.small_business) return [];
+  return DATA.subcontracts.filter(s=>s.prime_contractor_id===compId).map(s=>{
+    const sub=LU.comp[s.subcontractor_id];
+    if(!sub) return null;
+    const isLarge=(sub.company_type||'').includes('Large')||(sub.company_type||'').includes('Mid');
+    return isLarge?{...s,subCompany:sub}:null;
+  }).filter(Boolean);
+}
+
+// Dominant primes per installation
+function dominantPrimes(){
+  const r={};
+  DATA.installations.forEach(inst=>{
+    const cmds=DATA.commands.filter(c=>c.installation_id===inst.id);
+    const totals={};
+    cmds.forEach(cmd=>contractsByCmd(cmd.id).forEach(c=>{if(!totals[c.prime_contractor_id])totals[c.prime_contractor_id]=0;totals[c.prime_contractor_id]+=c.award_amount||0;}));
+    r[inst.id]=Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([id,val],i)=>({company:LU.comp[id],value:val,rank:i}));
+  });
+  return r;
+}
+const domColors=['#3b82f6','#00e87e','#e8731e','#8b5cf6','#ff3040','#ffd600','#06b6d4','#f472b6'];
+
+// ── VIEWS & NAV ──
+const VIEWS=['map','radar','contracts','companies','signals','brief'];
+let currentView='map', leafletMap=null, graphSim=null, layerGroups={}, activeLayers={};
+
+function switchView(v){
+  currentView=v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelector(`.nav-item[data-view="${v}"]`).classList.add('active');
+  // Show layer panel only for map/radar
+  document.getElementById('layerPanel').classList.toggle('hidden',v!=='map'&&v!=='radar');
+  closeDetail();
+  if(v==='map'&&!leafletMap)initMap();
+  if(v==='radar'&&!graphSim)initRadar();
+  if(v==='radar'&&graphSim)graphSim.alpha(0.3).restart();
+  if(v==='map'&&leafletMap)setTimeout(()=>leafletMap.invalidateSize(),100);
+}
+
+// ── MAP ──
+function initMap(){
+  leafletMap=L.map('map',{center:[36.88,-76.10],zoom:11,zoomControl:true,attributionControl:false});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(leafletMap);
+  ['installations','commands','contracts','heatmap','expirations','cog','primes','subs','dominance','workforce','hiring'].forEach(k=>layerGroups[k]=L.layerGroup());
+  buildMapLayers();
+  ['installations','commands','contracts','primes'].forEach(k=>{activeLayers[k]=true;layerGroups[k].addTo(leafletMap);});
+}
+
+function buildMapLayers(){
+  buildInstLayer();buildCmdLayer();buildConLayer();buildHeatLayer();buildExpLayer();buildCogLayer();buildPrimeLayer();buildSubLayer();buildDomLayer();buildWfLayer();buildHireLayer();
+}
+
+// Helper: create a marker with a rich popup whose links actually work
+function richPopup(marker,htmlContent){
+  marker.bindPopup(htmlContent,{maxWidth:300,closeButton:true,autoClose:true});
+  marker.on('popupopen',function(){
+    const container=marker.getPopup().getElement();
+    if(!container)return;
+    container.querySelectorAll('[data-act]').forEach(function(link){
+      link.style.cursor='pointer';
+      link.addEventListener('click',function(e){
+        e.preventDefault();e.stopPropagation();
+        const act=link.getAttribute('data-act');
+        const id=link.getAttribute('data-id');
+        const type=link.getAttribute('data-type');
+        marker.closePopup();
+        if(act==='detail')showDetail(type,id);
+        else if(act==='netgraph')openNetgraph(id);
+      });
+    });
+  });
+  return marker;
+}
+
+function buildInstLayer(){
+  const lg=layerGroups.installations;lg.clearLayers();
+  DATA.installations.forEach(inst=>{
+    L.circleMarker([inst.lat,inst.lon],{radius:12,fillColor:'#e8731e',fillOpacity:0.8,color:'#ff8c2a',weight:2}).addTo(lg)
+      .on('click',()=>showDetail('installation',inst.id));
+    const lbl=L.divIcon({className:'',html:`<div style="font-family:Orbitron;font-size:9px;color:#e8731e;text-shadow:0 0 6px rgba(232,115,30,0.6);white-space:nowrap;letter-spacing:1px;transform:translateX(-50%)">${inst.name.replace('Joint Expeditionary Base ','JEB ').toUpperCase()}</div>`,iconSize:[0,0],iconAnchor:[0,-16]});
+    L.marker([inst.lat,inst.lon],{icon:lbl,interactive:false}).addTo(lg);
+  });
+  document.getElementById('lc-inst').textContent=DATA.installations.length;
+}
+
+function buildCmdLayer(){
+  const lg=layerGroups.commands;lg.clearLayers();
+  DATA.commands.forEach(cmd=>{
+    const co=getInstCoords(cmd.installation_id);
+    const jlat=co[0]+(Math.random()-0.5)*0.015, jlon=co[1]+(Math.random()-0.5)*0.015;
+    const cons=contractsByCmd(cmd.id);
+    const tv=cons.reduce((s,c)=>s+(c.award_amount||0),0);
+    const r=Math.max(6,Math.min(14,6+tv/50e6));
+    const primeIds=[...new Set(cons.map(c=>c.prime_contractor_id))];
+    const exp=cons.filter(c=>monthsUntil(c.end_date||c.potential_end_date)<=24);
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:13px;color:#0ef0e8;margin-bottom:6px">${cmd.abbreviation||cmd.name}</div>
+      <div style="font-size:12px;color:#5a7080;margin-bottom:4px">${cmd.name}${cmd.mission_area?' — '+cmd.mission_area:''}</div>
+      <div style="font-size:12px;margin-bottom:6px"><b style="color:#0ef0e8">${FM(tv)}</b> across <b>${cons.length}</b> contracts · <b>${primeIds.length}</b> primes${exp.length?` · <span style="color:#ffd600">${exp.length} expiring</span>`:''}</div>
+      <div style="border-top:1px solid rgba(14,240,232,0.15);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="command" data-id="${cmd.id}" style="color:#0ef0e8;text-decoration:underline">&#9654; Command Intelligence</a>
+      </div>
+    </div>`;
+    const mk=L.circleMarker([jlat,jlon],{radius:r,fillColor:'#0ef0e8',fillOpacity:0.6,color:'#00fff2',weight:1.5}).addTo(lg);
+    richPopup(mk,html);
+    cmd._ll=[jlat,jlon];
+  });
+  document.getElementById('lc-cmd').textContent=DATA.commands.length;
+}
+
+function buildConLayer(){
+  const lg=layerGroups.contracts;lg.clearLayers();
+  DATA.contracts.forEach(con=>{
+    const cmd=LU.cmd[con.command_id];
+    const co=getInstCoords(cmd?.installation_id);
+    const jlat=co[0]+(Math.random()-0.5)*0.012,jlon=co[1]+(Math.random()-0.5)*0.012;
+    const r=Math.max(5,Math.min(18,5+(con.award_amount||0)/30e6));
+    const prime=LU.comp[con.prime_contractor_id];
+    const m=monthsUntil(con.end_date||con.potential_end_date);
+    const subs=subsForContract(con.id);
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:12px;color:#8b5cf6;margin-bottom:4px">${(con.description||con.contract_number).substring(0,50)}</div>
+      <div style="font-size:11px;color:#5a7080;margin-bottom:4px">${con.contract_number}</div>
+      <div style="font-size:12px;margin-bottom:4px"><b style="color:#8b5cf6">${FM(con.award_amount)}</b> · <span style="color:${expColor(m)}">${Math.round(m)}mo left</span> · ${subs.length} subs</div>
+      ${prime?`<div style="font-size:12px;margin-bottom:6px">Prime: <b>${prime.name}</b> ${setAsideBadges(prime)}</div>`:''}
+      <div style="border-top:1px solid rgba(139,92,246,0.2);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="contract" data-id="${con.id}" style="color:#8b5cf6;text-decoration:underline">&#9654; Contract Detail</a>
+        ${prime?` · <a data-act="detail" data-type="company" data-id="${con.prime_contractor_id}" style="color:#00e87e;text-decoration:underline">Company Intel</a>`:''}
+        ${cmd?` · <a data-act="detail" data-type="command" data-id="${con.command_id}" style="color:#0ef0e8;text-decoration:underline">Command Intel</a>`:''}
+      </div>
+    </div>`;
+    const mk=L.circleMarker([jlat,jlon],{radius:r,fillColor:'#8b5cf6',fillOpacity:0.4,color:'rgba(139,92,246,0.6)',weight:2}).addTo(lg);
+    richPopup(mk,html);
+    con._ll=[jlat,jlon];
+  });
+  document.getElementById('lc-con').textContent=DATA.contracts.length;
+}
+
+function buildHeatLayer(){
+  const lg=layerGroups.heatmap;lg.clearLayers();
+  const pts=DATA.contracts.map(c=>{const co=getInstCoords((LU.cmd[c.command_id]||{}).installation_id);return[co[0]+(Math.random()-0.5)*0.01,co[1]+(Math.random()-0.5)*0.01,Math.min(1,(c.award_amount||0)/200e6)];});
+  if(pts.length)lg.addLayer(L.heatLayer(pts,{radius:40,blur:30,maxZoom:15,gradient:{0.2:'#0ef0e8',0.5:'#ffd600',0.8:'#e8731e',1.0:'#ff3040'}}));
+}
+
+function buildExpLayer(){
+  const lg=layerGroups.expirations;lg.clearLayers();let ct=0;
+  DATA.contracts.forEach(c=>{
+    const m=monthsUntil(c.end_date||c.potential_end_date);if(m>36)return;ct++;
+    const co=c._ll||getInstCoords((LU.cmd[c.command_id]||{}).installation_id);
+    const color=m<=6?'#ff3040':m<=12?'#e8731e':m<=24?'#ffd600':'#00e87e';
+    const jll=[co[0]+(Math.random()-0.5)*0.005,co[1]+(Math.random()-0.5)*0.005];
+    const prime=LU.comp[c.prime_contractor_id];
+    const urgency=m<=6?'CRITICAL':m<=12?'HIGH':m<=24?'MEDIUM':'LOW';
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:11px;color:${color};margin-bottom:4px">&#9200; ${urgency} — ${Math.round(m)} MONTHS</div>
+      <div style="font-size:12px;margin-bottom:4px"><b>${(c.description||c.contract_number).substring(0,45)}</b></div>
+      <div style="font-size:12px;margin-bottom:6px">${FM(c.award_amount)} · Prime: ${prime?prime.name:'—'}</div>
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="contract" data-id="${c.id}" style="color:${color};text-decoration:underline">&#9654; Contract Detail</a>
+        ${prime?` · <a data-act="detail" data-type="company" data-id="${c.prime_contractor_id}" style="color:#00e87e;text-decoration:underline">Company Intel</a>`:''}
+      </div>
+    </div>`;
+    const mk=L.circleMarker(jll,{radius:10,fillColor:color,fillOpacity:0.7,color,weight:2}).addTo(lg);
+    richPopup(mk,html);
+  });
+  document.getElementById('lc-exp').textContent=ct;
+}
+
+function buildCogLayer(){
+  const lg=layerGroups.cog;lg.clearLayers();
+  const scored=DATA.contracts.map(c=>({...c,score:cogScore(c)})).sort((a,b)=>b.score-a.score).slice(0,5);
+  document.getElementById('lc-cog').textContent=scored.length;
+  scored.forEach((c,i)=>{
+    const co=c._ll||getInstCoords((LU.cmd[c.command_id]||{}).installation_id);
+    const r=16+(4-i)*3;
+    const prime=LU.comp[c.prime_contractor_id];
+    const subs=subsForContract(c.id);
+    const m=monthsUntil(c.end_date||c.potential_end_date);
+    L.circleMarker(co,{radius:r+6,fillColor:'transparent',fillOpacity:0,color:'rgba(255,255,255,0.15)',weight:1}).addTo(lg);
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:12px;color:#ffd600;margin-bottom:4px">&#9733; CENTER OF GRAVITY #${i+1}</div>
+      <div style="font-size:12px;margin-bottom:2px"><b>${(c.description||c.contract_number).substring(0,45)}</b></div>
+      <div style="font-size:12px;margin-bottom:4px">Score: <b style="color:#ffd600">${c.score.toFixed(0)}</b> · ${FM(c.award_amount)} · ${subs.length} subs · <span style="color:${expColor(m)}">${Math.round(m)}mo</span></div>
+      ${prime?`<div style="font-size:12px;margin-bottom:6px">Prime: <b>${prime.name}</b> ${setAsideBadges(prime)}</div>`:''}
+      <div style="border-top:1px solid rgba(255,214,0,0.2);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="contract" data-id="${c.id}" style="color:#ffd600;text-decoration:underline">&#9654; Contract Detail</a>
+        ${prime?` · <a data-act="detail" data-type="company" data-id="${c.prime_contractor_id}" style="color:#00e87e;text-decoration:underline">Company Intel</a>`:''}
+      </div>
+    </div>`;
+    const mk=L.circleMarker(co,{radius:r,fillColor:'#fff',fillOpacity:0.12,color:'#fff',weight:3,dashArray:'4 4'}).addTo(lg);
+    richPopup(mk,html);
+  });
+}
+
+function buildPrimeLayer(){
+  const lg=layerGroups.primes;lg.clearLayers();
+  const pids=[...new Set(DATA.contracts.map(c=>c.prime_contractor_id))];
+  document.getElementById('lc-primes').textContent=pids.length;
+  pids.forEach(pid=>{
+    const co=LU.comp[pid];if(!co)return;
+    const cons=DATA.contracts.filter(c=>c.prime_contractor_id===pid);
+    const cmd=LU.cmd[cons[0]?.command_id];
+    const coords=getInstCoords(cmd?.installation_id);
+    const jlat=coords[0]+(Math.random()-0.5)*0.02,jlon=coords[1]+(Math.random()-0.5)*0.02;
+    const tv=cons.reduce((s,c)=>s+(c.award_amount||0),0);
+    const r=Math.max(6,Math.min(14,6+tv/80e6));
+    const isSB=co.small_business===1||(co.company_type||'').toLowerCase().includes('small');
+    const color=isSB?'#8b5cf6':'#00e87e';
+    const subs=DATA.subcontracts.filter(s=>cons.some(c=>c.id===s.contract_id));
+    const sa=getSetAsides(co);
+    // Find the biggest contract that has subcontractors for network graph
+    const conWithSubs=cons.filter(c=>DATA.subcontracts.some(s=>s.contract_id===c.id)).sort((a,b)=>(b.award_amount||0)-(a.award_amount||0));
+    const ngConId=conWithSubs.length?conWithSubs[0].id:null;
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:12px;color:${color};margin-bottom:4px">${co.name}</div>
+      <div style="font-size:11px;color:#5a7080;margin-bottom:4px">${co.company_type||''}${co.city?' — '+co.city+', '+co.state:''}</div>
+      ${sa.length?`<div style="margin-bottom:4px">${sa.map(s=>'<span style="display:inline-block;background:rgba(14,240,232,0.1);color:#0ef0e8;font-size:10px;padding:1px 6px;border-radius:3px;margin-right:3px">'+s+'</span>').join('')}</div>`:''}
+      <div style="font-size:12px;margin-bottom:6px"><b style="color:${color}">${FM(tv)}</b> across <b>${cons.length}</b> contracts · <b>${subs.length}</b> subs</div>
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="company" data-id="${pid}" style="color:#00e87e;text-decoration:underline">&#9654; Company Intel</a>
+        ${ngConId?`<a data-act="netgraph" data-id="${ngConId}" style="color:#8b5cf6;text-decoration:underline;margin-left:8px">Network Graph</a>`:''}
+      </div>
+    </div>`;
+    const mk=L.circleMarker([jlat,jlon],{radius:r,fillColor:color,fillOpacity:0.7,color,weight:1.5}).addTo(lg);
+    richPopup(mk,html);
+    co._ll=[jlat,jlon];
+  });
+}
+
+function buildSubLayer(){
+  const lg=layerGroups.subs;lg.clearLayers();
+  const sids=[...new Set(DATA.subcontracts.map(s=>s.subcontractor_id))];
+  document.getElementById('lc-subs').textContent=sids.length;
+  DATA.subcontracts.forEach(s=>{
+    const prime=LU.comp[s.prime_contractor_id],sub=LU.comp[s.subcontractor_id];
+    if(!prime||!sub)return;
+    const pc=prime._ll||[36.88+(Math.random()-0.5)*0.02,-76.10+(Math.random()-0.5)*0.02];
+    const sc=sub._ll||[pc[0]+(Math.random()-0.5)*0.015,pc[1]+(Math.random()-0.5)*0.015];
+    if(!sub._ll)sub._ll=sc;
+    const w=Math.max(1,Math.min(5,1+(s.sub_award_amount||0)/5e6));
+    const isReverse=(prime.small_business===1||(prime.company_type||'').includes('Small'))&&((sub.company_type||'').includes('Large')||(sub.company_type||'').includes('Mid'));
+    L.polyline([pc,sc],{color:isReverse?'rgba(232,115,30,0.5)':'rgba(139,92,246,0.35)',weight:w,dashArray:'6 4'}).addTo(lg);
+    const subSa=getSetAsides(sub);
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:11px;color:${isReverse?'#e8731e':'#8b5cf6'};margin-bottom:4px">${isReverse?'&#9888; REVERSE SUB':'SUBCONTRACTOR'}</div>
+      <div style="font-size:13px;margin-bottom:2px"><b>${sub.name}</b></div>
+      <div style="font-size:11px;color:#5a7080;margin-bottom:4px">${sub.company_type||''}</div>
+      ${subSa.length?`<div style="margin-bottom:4px">${subSa.map(sa=>'<span style="display:inline-block;background:rgba(14,240,232,0.1);color:#0ef0e8;font-size:10px;padding:1px 6px;border-radius:3px;margin-right:3px">'+sa+'</span>').join('')}</div>`:''}
+      <div style="font-size:12px;margin-bottom:4px">${FM(s.sub_award_amount||s.subaward_amount)} under <b>${prime.name}</b></div>
+      ${isReverse?'<div style="font-size:11px;color:#e8731e;margin-bottom:4px">Large firm subbing under SB for set-aside points</div>':''}
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="company" data-id="${s.subcontractor_id}" style="color:#00e87e;text-decoration:underline">&#9654; Sub Intel</a>
+        · <a data-act="detail" data-type="company" data-id="${s.prime_contractor_id}" style="color:#00e87e;text-decoration:underline">Prime Intel</a>
+      </div>
+    </div>`;
+    const mk=L.circleMarker(sc,{radius:5,fillColor:isReverse?'#e8731e':'#8b5cf6',fillOpacity:0.6,color:isReverse?'#e8731e':'#8b5cf6',weight:1}).addTo(lg);
+    richPopup(mk,html);
+  });
+}
+
+function buildDomLayer(){
+  const lg=layerGroups.dominance;lg.clearLayers();
+  const dom=dominantPrimes();
+  Object.entries(dom).forEach(([iid,primes])=>{
+    const inst=LU.inst[iid];if(!inst||!primes.length)return;
+    primes.slice(0,4).forEach((p,i)=>{
+      if(!p.company)return;
+      const c=domColors[i%domColors.length],r=30-i*6;
+      const sa=getSetAsides(p.company);
+      const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+        <div style="font-family:Orbitron;font-size:11px;color:${c};margin-bottom:4px">DOMINANCE #${i+1} — ${inst.name.replace('Joint Expeditionary Base ','JEB ')}</div>
+        <div style="font-size:13px;margin-bottom:2px"><b>${p.company.name}</b></div>
+        ${sa.length?`<div style="margin-bottom:4px">${sa.map(s=>'<span style="display:inline-block;background:rgba(14,240,232,0.1);color:#0ef0e8;font-size:10px;padding:1px 6px;border-radius:3px;margin-right:3px">'+s+'</span>').join('')}</div>`:''}
+        <div style="font-size:12px;margin-bottom:6px"><b style="color:${c}">${FM(p.value)}</b> total contract value</div>
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;font-size:12px">
+          <a data-act="detail" data-type="company" data-id="${p.company.id}" style="color:#00e87e;text-decoration:underline">&#9654; Company Intel</a>
+        </div>
+      </div>`;
+      const circle=L.circle([inst.lat,inst.lon],{radius:r*80,fillColor:c,fillOpacity:0.06+0.03*(3-i),color:c,weight:1.5,dashArray:i>0?'8 4':''}).addTo(lg);
+      richPopup(circle,html);
+      const a=(i*90+45)*Math.PI/180;
+      L.marker([inst.lat+Math.cos(a)*r*0.0006,inst.lon+Math.sin(a)*r*0.0008],{icon:L.divIcon({className:'',html:`<div style="font-family:'Share Tech Mono';font-size:9px;color:${c};white-space:nowrap;text-shadow:0 0 4px ${c}">${p.company.name.split(' ')[0]}</div>`,iconSize:[0,0]}),interactive:false}).addTo(lg);
+    });
+  });
+}
+
+function buildWfLayer(){
+  const lg=layerGroups.workforce;lg.clearLayers();
+  document.getElementById('lc-wf').textContent=DATA.workforce_signals.length;
+  const byC={};DATA.workforce_signals.forEach(s=>{if(!byC[s.company_id])byC[s.company_id]=[];byC[s.company_id].push(s);});
+  Object.entries(byC).forEach(([cid,sigs])=>{
+    const co=LU.comp[cid];if(!co)return;
+    const coords=co._ll||getInstCoords('jeblcfs');
+    const jl=[coords[0]+(Math.random()-0.5)*0.008,coords[1]+(Math.random()-0.5)*0.008];
+    const r=Math.max(5,Math.min(16,5+sigs.length*2));
+    const topRoles=sigs.slice(0,3).map(s=>s.job_title||'Unknown').join(', ');
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:11px;color:#0ef0e8;margin-bottom:4px">WORKFORCE SIGNALS</div>
+      <div style="font-size:13px;margin-bottom:2px"><b>${co.name}</b></div>
+      <div style="font-size:12px;margin-bottom:4px"><b>${sigs.length}</b> signals · Est. <b>${sigs.length*3}–${sigs.length*8}</b> personnel</div>
+      <div style="font-size:11px;color:#5a7080;margin-bottom:6px">${topRoles}</div>
+      <div style="border-top:1px solid rgba(14,240,232,0.15);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="company" data-id="${cid}" style="color:#00e87e;text-decoration:underline">&#9654; Company Intel</a>
+      </div>
+    </div>`;
+    const mk=L.circleMarker(jl,{radius:r,fillColor:'rgba(14,240,232,0.3)',fillOpacity:0.5,color:'#0ef0e8',weight:1}).addTo(lg);
+    richPopup(mk,html);
+  });
+}
+
+function buildHireLayer(){
+  const lg=layerGroups.hiring;lg.clearLayers();
+  const recent=DATA.workforce_signals.filter(s=>!s.date_posted||monthsUntil(s.date_posted)>-6);
+  document.getElementById('lc-hiring').textContent=recent.length;
+  recent.forEach(s=>{
+    const co=LU.comp[s.company_id];if(!co)return;
+    const coords=co._ll||getInstCoords('jeblcfs');
+    const jl=[coords[0]+(Math.random()-0.5)*0.01,coords[1]+(Math.random()-0.5)*0.01];
+    const icon=L.divIcon({className:'',html:`<div style="position:relative;width:14px;height:14px"><div style="position:absolute;inset:0;background:var(--green);border-radius:50%;opacity:0.8" class="hiring-pulse"></div><div style="position:absolute;inset:3px;background:var(--green);border-radius:50%"></div></div>`,iconSize:[14,14],iconAnchor:[7,7]});
+    const html=`<div style="font-family:Rajdhani;color:#c8d6e0">
+      <div style="font-family:Orbitron;font-size:11px;color:#00e87e;margin-bottom:4px">&#128994; ACTIVE HIRING</div>
+      <div style="font-size:13px;margin-bottom:2px"><b>${co.name}</b></div>
+      <div style="font-size:12px;margin-bottom:2px">Role: <b>${s.job_title||'Unknown'}</b></div>
+      ${s.date_posted?`<div style="font-size:11px;color:#5a7080;margin-bottom:4px">Posted: ${s.date_posted}</div>`:''}
+      ${s.clearance_required?`<div style="font-size:11px;color:#ffd600;margin-bottom:4px">&#128274; Clearance Required</div>`:''}
+      <div style="border-top:1px solid rgba(0,232,126,0.2);padding-top:6px;font-size:12px">
+        <a data-act="detail" data-type="company" data-id="${s.company_id}" style="color:#00e87e;text-decoration:underline">&#9654; Company Intel</a>
+      </div>
+    </div>`;
+    const mk=L.marker(jl,{icon}).addTo(lg);
+    richPopup(mk,html);
+  });
+}
+
+// ── LAYER TOGGLES ──
+document.querySelectorAll('.lt').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const k=el.dataset.layer; el.classList.toggle('on');
+    const on=el.classList.contains('on');
+    el.querySelector('.lt-ck').innerHTML=on?'&#x2713;':'';
+    if(on){activeLayers[k]=true;if(leafletMap)layerGroups[k].addTo(leafletMap);}
+    else{delete activeLayers[k];if(leafletMap)leafletMap.removeLayer(layerGroups[k]);}
+  });
+});
+
+// ── RADAR (D3 force-radial graph) ──
+function initRadar(){
+  const svg=d3.select('#graph-svg');
+  const el=document.getElementById('view-radar');
+  const W=el.clientWidth,H=el.clientHeight-36;
+  svg.attr('width',W).attr('height',H);
+  const cx=W/2,cy=H/2,maxR=Math.min(W,H)*0.44;
+
+  const defs=svg.append('defs');
+  const sg=defs.append('radialGradient').attr('id','sweepGrad');
+  sg.append('stop').attr('offset','0%').attr('stop-color','rgba(232,115,30,0)');
+  sg.append('stop').attr('offset','100%').attr('stop-color','rgba(232,115,30,0.08)');
+  ['orange','cyan','green','purple'].forEach(c=>{
+    const cols={orange:'232,115,30',cyan:'14,240,232',green:'0,232,126',purple:'139,92,246'};
+    const f=defs.append('filter').attr('id','glow-'+c).attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
+    f.append('feGaussianBlur').attr('in','SourceGraphic').attr('stdDeviation','3').attr('result','blur');
+    f.append('feFlood').attr('flood-color',`rgba(${cols[c]},0.6)`).attr('result','color');
+    f.append('feComposite').attr('in','color').attr('in2','blur').attr('operator','in').attr('result','glow');
+    const m=f.append('feMerge');m.append('feMergeNode').attr('in','glow');m.append('feMergeNode').attr('in','SourceGraphic');
+  });
+
+  const g=svg.append('g');
+  [0.95,0.7,0.47,0.24].forEach((r,i)=>{g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',maxR*r).attr('class','radar-ring').attr('stroke','var(--orange-ring)').attr('stroke-width',0.5).attr('opacity',0.2+i*0.1);});
+  g.append('line').attr('x1',cx-maxR).attr('y1',cy).attr('x2',cx+maxR).attr('y2',cy).attr('class','radar-crosshair');
+  g.append('line').attr('x1',cx).attr('y1',cy-maxR).attr('x2',cx).attr('y2',cy+maxR).attr('class','radar-crosshair');
+  [{r:0.95,t:'SUBCONTRACTORS'},{r:0.7,t:'PRIMES'},{r:0.47,t:'COMMANDS'},{r:0.24,t:'INSTALLATION'}].forEach(l=>{
+    g.append('text').attr('x',cx).attr('y',cy-maxR*l.r-4).attr('text-anchor','middle').attr('font-family','Share Tech Mono').attr('font-size',7).attr('fill','var(--orange-ring)').attr('letter-spacing',1).text(l.t);
+  });
+
+  const nodeMap=new Map(),nodes=[],links=[];
+  const colors={installation:'#e8731e',command:'#0ef0e8',company:'#00e87e'};
+  const sizes={installation:20,command:10,company:12};
+
+  DATA.installations.forEach(i=>{const n={id:'i_'+i.id,type:'installation',label:i.name.replace('Joint Expeditionary Base ','JEB '),data:i,ring:0};nodes.push(n);nodeMap.set(n.id,n);});
+  DATA.commands.forEach(c=>{const n={id:'c_'+c.id,type:'command',label:c.abbreviation||c.name.substring(0,15),data:c,ring:0.35};nodes.push(n);nodeMap.set(n.id,n);});
+
+  const acs=new Set();
+  DATA.contracts.forEach(c=>{if(c.prime_contractor_id)acs.add(c.prime_contractor_id);});
+  DATA.subcontracts.forEach(s=>{acs.add(s.prime_contractor_id);acs.add(s.subcontractor_id);});
+
+  DATA.companies.filter(c=>acs.has(c.id)).forEach(c=>{
+    const isSub=DATA.subcontracts.some(s=>s.subcontractor_id===c.id)&&!DATA.contracts.some(ct=>ct.prime_contractor_id===c.id);
+    const n={id:'co_'+c.id,type:'company',label:c.name.replace(/ Inc$/,'').replace(/ LLC$/,'').replace(/ Corporation$/,'').substring(0,18),data:c,ring:isSub?0.88:0.7,subtype:isSub?'sub':'prime'};
+    nodes.push(n);nodeMap.set(n.id,n);
+  });
+
+  DATA.edges.forEach(e=>{
+    const pre={installation:'i_',command:'c_',contract:'ct_',company:'co_'};
+    const sid=(pre[e.source_type]||'')+e.source_id,tid=(pre[e.target_type]||'')+e.target_id;
+    if(nodeMap.has(sid)&&nodeMap.has(tid))links.push({source:sid,target:tid,weight:e.weight,rel:e.relationship});
+  });
+
+  const zg=svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.3,4]).on('zoom',e=>zg.attr('transform',e.transform)));
+
+  const link=zg.append('g').selectAll('line').data(links).enter().append('line')
+    .attr('stroke',d=>d.rel==='hosts'?'rgba(232,115,30,0.2)':d.rel==='awards'||d.rel==='awarded_to'?'rgba(14,240,232,0.12)':d.rel==='subcontracts_to'?'rgba(139,92,246,0.15)':'rgba(14,240,232,0.08)')
+    .attr('stroke-width',d=>Math.max(0.5,d.weight))
+    .attr('stroke-dasharray',d=>d.rel==='staffs'?'3,3':d.rel==='subcontracts_to'?'2,2':null);
+
+  const node=zg.append('g').selectAll('g').data(nodes).enter().append('g').attr('class','graph-node')
+    .call(d3.drag().on('start',(e,d)=>{if(!e.active)graphSim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;}).on('end',(e,d)=>{if(!e.active)graphSim.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .on('click',(e,d)=>{
+      const map={i_:'installation',c_:'command',ct_:'contract',co_:'company'};
+      for(const[pre,type]of Object.entries(map)){if(d.id.startsWith(pre)){showDetail(type,d.id.substring(pre.length));break;}}
+    });
+
+  node.append('circle')
+    .attr('r',d=>sizes[d.type]||(d.subtype==='sub'?7:10))
+    .attr('fill',d=>d.subtype==='sub'?'#8b5cf6':colors[d.type]||'#00e87e')
+    .attr('opacity',0.85)
+    .attr('filter',d=>d.type==='installation'?'url(#glow-orange)':d.type==='command'?'url(#glow-cyan)':d.subtype==='sub'?'url(#glow-purple)':'url(#glow-green)');
+  node.append('text').attr('dy',d=>(sizes[d.type]||10)+12).attr('text-anchor','middle').text(d=>d.label).style('font-size',d=>d.type==='installation'?'11px':'8px');
+
+  graphSim=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>d.rel==='hosts'?80:50).strength(0.5))
+    .force('charge',d3.forceManyBody().strength(d=>d.type==='installation'?-400:d.type==='command'?-120:-60))
+    .force('radial',d3.forceRadial(d=>d.ring*maxR,cx,cy).strength(0.6))
+    .force('collision',d3.forceCollide().radius(d=>(sizes[d.type]||10)+6))
+    .on('tick',()=>{
+      link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      node.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+}
+
+// ── DETAIL PANEL (v1-style right panel) ──
+function showDetail(type,id){
+  const panel=document.getElementById('detailPanel');
+  const typeEl=document.getElementById('dpType');
+  const titleEl=document.getElementById('dpTitle');
+  const subEl=document.getElementById('dpSub');
+  const body=document.getElementById('dpBody');
+  let h='';
+
+  if(type==='installation'){
+    const inst=LU.inst[id];if(!inst)return;
+    const cmds=DATA.commands.filter(c=>c.installation_id===id);
+    const allCons=cmds.flatMap(c=>contractsByCmd(c.id));
+    const tv=allCons.reduce((s,c)=>s+(c.award_amount||0),0);
+    const primeIds=[...new Set(allCons.map(c=>c.prime_contractor_id))];
+    const subIds=[...new Set(DATA.subcontracts.filter(s=>allCons.some(c=>c.id===s.contract_id)).map(s=>s.subcontractor_id))];
+    const exp24=allCons.filter(c=>monthsUntil(c.end_date||c.potential_end_date)<=24);
+    typeEl.innerHTML='<span style="background:rgba(232,115,30,0.2);color:var(--orange)">INSTALLATION</span>';
+    titleEl.textContent=inst.name; subEl.textContent=inst.city+', '+inst.state;
+    h=`<div class="dp-section"><div class="dp-stat-grid">
+      <div class="dp-stat full"><div class="dp-stat-val">${FM(tv)}</div><div class="dp-stat-lbl">Total Contract Value</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${cmds.length}</div><div class="dp-stat-lbl">Commands</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${allCons.length}</div><div class="dp-stat-lbl">Contracts</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${primeIds.length}</div><div class="dp-stat-lbl">Primes</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${subIds.length}</div><div class="dp-stat-lbl">Subs</div></div>
+      <div class="dp-stat ${exp24.length>3?'danger':'warn'}"><div class="dp-stat-val">${exp24.length}</div><div class="dp-stat-lbl">Expiring &lt;24mo</div></div>
+    </div></div>`;
+    // Top primes
+    const pt={};allCons.forEach(c=>{if(!pt[c.prime_contractor_id])pt[c.prime_contractor_id]=0;pt[c.prime_contractor_id]+=c.award_amount||0;});
+    const sp=Object.entries(pt).sort((a,b)=>b[1]-a[1]);const mx=sp[0]?sp[0][1]:1;
+    h+=`<div class="dp-section"><div class="dp-sec-title">Who Owns This Territory</div>`;
+    sp.slice(0,8).forEach(([pid,val],i)=>{const co=LU.comp[pid];if(!co)return;const c=domColors[i%domColors.length];
+      h+=`<div class="dp-row" onclick="showDetail('company','${pid}')"><div class="dp-row-dot" style="background:${c}"></div><div class="dp-row-name">${co.name} ${setAsideBadges(co)}</div><div class="dp-row-val">${FM(val)}</div></div><div class="dp-bar-wrap"><div class="dp-bar" style="width:${(val/mx*100).toFixed(0)}%;background:${c}"></div></div>`;
+    });
+    h+=`</div>`;
+    // Commands
+    h+=`<div class="dp-section"><div class="dp-sec-title">Commands</div>`;
+    cmds.forEach(c=>{const v=contractsByCmd(c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);
+      h+=`<div class="dp-row" onclick="showDetail('command','${c.id}')"><div class="dp-row-dot" style="background:var(--cyan)"></div><div class="dp-row-name">${c.abbreviation||c.name}</div><div class="dp-row-val">${FM(v)}</div></div>`;
+    });
+    h+=`</div>`;
+
+  }else if(type==='command'){
+    const cmd=LU.cmd[id];if(!cmd)return;
+    const cons=contractsByCmd(id);
+    const tv=cons.reduce((s,c)=>s+(c.award_amount||0),0);
+    const primes=[...new Set(cons.map(c=>c.prime_contractor_id))].map(pid=>LU.comp[pid]).filter(Boolean);
+    const allSubs=cons.flatMap(c=>subsForContract(c.id));
+    const subIds=[...new Set(allSubs.map(s=>s.subcontractor_id))];
+    const exp=cons.filter(c=>monthsUntil(c.end_date||c.potential_end_date)<=24);
+    typeEl.innerHTML='<span style="background:rgba(14,240,232,0.15);color:var(--cyan)">COMMAND</span>';
+    titleEl.textContent=cmd.abbreviation||cmd.name;
+    subEl.textContent=cmd.name+(cmd.mission_area?' — '+cmd.mission_area:'');
+    h=`<div class="dp-section"><div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">${cmd.description||''}</div>
+    <div class="dp-stat-grid">
+      <div class="dp-stat full"><div class="dp-stat-val">${FM(tv)}</div><div class="dp-stat-lbl">Total Contract Value</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${primes.length}</div><div class="dp-stat-lbl">Active Primes</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${subIds.length}</div><div class="dp-stat-lbl">Active Subs</div></div>
+      <div class="dp-stat ${exp.length>0?'warn':''}"><div class="dp-stat-val">${exp.length}</div><div class="dp-stat-lbl">Expiring &lt;24mo</div></div>
+    </div></div>`;
+    if(primes.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Prime Contractors</div>`;
+      primes.forEach((co,i)=>{const v=cons.filter(c=>c.prime_contractor_id===co.id).reduce((s,c)=>s+(c.award_amount||0),0);
+        h+=`<div class="dp-row" onclick="showDetail('company','${co.id}')"><div class="dp-row-dot" style="background:${domColors[i%domColors.length]}"></div><div class="dp-row-name">${co.name} ${setAsideBadges(co)}</div><div class="dp-row-val">${FM(v)}</div></div>`;
+      });
+      h+=`</div>`;
+    }
+    h+=`<div class="dp-section"><div class="dp-sec-title">Contracts</div>`;
+    cons.sort((a,b)=>(b.award_amount||0)-(a.award_amount||0)).forEach(c=>{const m=monthsUntil(c.end_date||c.potential_end_date);
+      h+=`<div class="dp-row" onclick="showDetail('contract','${c.id}')"><span class="exp-badge ${expClass(m)}" style="font-size:9px">${Math.round(m)}mo</span><div class="dp-row-name">${c.description||c.contract_number}</div><div class="dp-row-val">${FM(c.award_amount)}</div></div>`;
+    });
+    h+=`</div>`;
+
+  }else if(type==='contract'){
+    const c=LU.con[id];if(!c)return;
+    const prime=LU.comp[c.prime_contractor_id];
+    const cmd=LU.cmd[c.command_id];
+    const subs=subsForContract(id);
+    const m=monthsUntil(c.end_date||c.potential_end_date);
+    const score=cogScore(c);
+    const corrs=DATA.correlations.filter(cr=>cr.contract_id===id);
+    typeEl.innerHTML='<span style="background:rgba(139,92,246,0.15);color:var(--purple)">CONTRACT</span>';
+    titleEl.textContent=c.description||c.contract_number;
+    subEl.textContent=c.contract_number;
+    h=`<div class="dp-section"><div class="dp-stat-grid">
+      <div class="dp-stat full"><div class="dp-stat-val">${FM(c.award_amount)}</div><div class="dp-stat-lbl">Award Amount</div></div>
+      <div class="dp-stat"><div class="dp-stat-val" style="color:${expColor(m)}">${Math.round(m)}mo</div><div class="dp-stat-lbl">Until Expiry</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${subs.length}</div><div class="dp-stat-lbl">Subcontractors</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${score.toFixed(0)}</div><div class="dp-stat-lbl">COG Score</div></div>
+    </div></div>`;
+    h+=`<div class="dp-section"><div class="dp-sec-title">Details</div><div style="font-size:12px;line-height:1.6">
+      <b style="color:var(--text-dim)">Command:</b> <span style="cursor:pointer;color:var(--cyan)" onclick="showDetail('command','${c.command_id}')">${cmd?cmd.abbreviation||cmd.name:'—'}</span><br>
+      <b style="color:var(--text-dim)">Prime:</b> <span style="cursor:pointer;color:var(--cyan)" onclick="showDetail('company','${c.prime_contractor_id}')">${prime?prime.name:'—'}</span> ${prime?setAsideBadges(prime):''}<br>
+      <b style="color:var(--text-dim)">Period:</b> ${c.start_date||'?'} → ${c.end_date||c.potential_end_date||'?'}<br>
+      <b style="color:var(--text-dim)">NAICS:</b> ${c.naics_code||'—'} ${c.naics_description||''}<br>
+      <b style="color:var(--text-dim)">Office:</b> ${c.contracting_office||'—'}
+    </div></div>`;
+    if(subs.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Subcontract Ecosystem</div><div class="popup-link" data-action="netgraph" data-id="${id}" style="margin-bottom:8px;font-size:12px;cursor:pointer">&#9654; Open Network Graph</div>`;
+      subs.forEach(s=>{const sub=LU.comp[s.subcontractor_id];const isLarge=sub&&((sub.company_type||'').includes('Large')||(sub.company_type||'').includes('Mid'));
+        h+=`<div class="dp-row" onclick="showDetail('company','${s.subcontractor_id}')"><div class="dp-row-dot" style="background:${isLarge?'var(--orange)':'var(--purple)'}"></div><div class="dp-row-name">${sub?sub.name:'?'} ${sub?setAsideBadges(sub):''}</div><div class="dp-row-val">${FM(s.sub_award_amount||s.subaward_amount)}</div></div>`;
+      });
+      h+=`</div>`;
+    }
+    if(corrs.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Workforce Signals (${corrs.length})</div>`;
+      corrs.forEach(cr=>{const ws=DATA.workforce_signals.find(w=>w.id===cr.workforce_signal_id);if(!ws)return;
+        const cc=cr.confidence_score>0.7?'var(--green)':cr.confidence_score>0.5?'var(--orange)':'var(--red)';
+        h+=`<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.03)"><div style="font-weight:600">${CN(ws.company_id)} — ${ws.job_title||''}</div><div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:${cr.confidence_score*100}%;background:${cc}"></div></div><div class="conf-val" style="color:${cc}">${(cr.confidence_score*100).toFixed(0)}%</div></div></div>`;
+      });
+      h+=`</div>`;
+    }
+    if(m<=24){
+      h+=`<div class="dp-section" style="background:rgba(255,214,0,0.03)"><div class="dp-sec-title" style="color:var(--yellow)">&#9888; Bid Opportunity</div><div style="font-size:12px;line-height:1.5">
+      Expires in <b style="color:${expColor(m)}">${Math.round(m)} months</b>. Current: <b>${prime?prime.name:'?'}</b> with <b>${subs.length}</b> subs.</div></div>`;
+    }
+
+  }else if(type==='company'){
+    const co=LU.comp[id];if(!co)return;
+    const pcs=DATA.contracts.filter(c=>c.prime_contractor_id===id);
+    const scs=DATA.subcontracts.filter(s=>s.subcontractor_id===id);
+    const sigs=signalsForCompany(id);
+    const pv=pcs.reduce((s,c)=>s+(c.award_amount||0),0);
+    const sv=scs.reduce((s,s2)=>s+(s2.sub_award_amount||s2.subaward_amount||0),0);
+    const cmds=[...new Set(pcs.map(c=>c.command_id))].map(cid=>LU.cmd[cid]).filter(Boolean);
+    // Reverse subs: large primes subbing under this company
+    const revSubs=largePrimesSubbingUnder(id);
+    // This company's subs
+    const mySubs=DATA.subcontracts.filter(s=>s.prime_contractor_id===id);
+    const sa=getSetAsides(co);
+
+    typeEl.innerHTML='<span style="background:rgba(0,232,126,0.15);color:var(--green)">COMPANY</span>';
+    titleEl.textContent=co.name;
+    subEl.textContent=(co.company_type||'')+(co.city?' — '+co.city+', '+co.state:'');
+
+    h=`<div class="dp-section">`;
+    if(sa.length) h+=`<div style="margin-bottom:8px">${sa.map(s=>`<span class="badge badge-sa" style="font-size:11px;padding:3px 8px;margin-right:4px">${s}</span>`).join('')}</div>`;
+    h+=`<div class="dp-stat-grid">
+      <div class="dp-stat"><div class="dp-stat-val">${FM(pv)}</div><div class="dp-stat-lbl">Prime Value</div></div>
+      <div class="dp-stat"><div class="dp-stat-val" style="color:var(--purple)">${FM(sv)}</div><div class="dp-stat-lbl">Sub Value</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${pcs.length}</div><div class="dp-stat-lbl">Prime Contracts</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${scs.length}</div><div class="dp-stat-lbl">Sub Relationships</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${sigs.length}</div><div class="dp-stat-lbl">Workforce Signals</div></div>
+      <div class="dp-stat"><div class="dp-stat-val">${sigs.length*5}–${sigs.length*10}</div><div class="dp-stat-lbl">Est. Workforce</div></div>
+    </div></div>`;
+
+    // Reverse subs highlight
+    if(revSubs.length){
+      h+=`<div class="dp-section" style="background:rgba(232,115,30,0.04)"><div class="dp-sec-title" style="color:var(--orange)">&#9888; Reverse Subs (Large Primes Under This SB)</div>`;
+      revSubs.forEach(rs=>{
+        h+=`<div class="dp-row" onclick="showDetail('company','${rs.subcontractor_id}')"><div class="dp-row-dot" style="background:var(--orange)"></div><div class="dp-row-name">${rs.subCompany.name} <span style="font-size:10px;color:var(--text-dim)">${rs.subCompany.company_type}</span></div><div class="dp-row-val">${FM(rs.sub_award_amount||rs.subaward_amount)}</div></div>`;
+      });
+      h+=`<div style="font-size:11px;color:var(--text-dim);margin-top:4px">Large firms subbing under small business prime for set-aside points</div></div>`;
+    }
+
+    if(cmds.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Commands Supported</div>`;
+      cmds.forEach(cmd=>{h+=`<div class="dp-row" onclick="showDetail('command','${cmd.id}')"><div class="dp-row-dot" style="background:var(--cyan)"></div><div class="dp-row-name">${cmd.abbreviation||cmd.name}</div><div class="dp-row-val">${cmd.mission_area||''}</div></div>`;});
+      h+=`</div>`;
+    }
+    if(pcs.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Prime Contracts</div>`;
+      pcs.forEach(c=>{const m=monthsUntil(c.end_date||c.potential_end_date);
+        h+=`<div class="dp-row" onclick="showDetail('contract','${c.id}')"><span class="exp-badge ${expClass(m)}" style="font-size:9px">${Math.round(m)}mo</span><div class="dp-row-name">${c.description||c.contract_number}</div><div class="dp-row-val">${FM(c.award_amount)}</div></div>`;
+      });
+      h+=`</div>`;
+    }
+    if(scs.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Subcontracts (as sub under)</div>`;
+      scs.forEach(s=>{const p=LU.comp[s.prime_contractor_id];
+        h+=`<div class="dp-row" onclick="showDetail('company','${s.prime_contractor_id}')"><div class="dp-row-dot" style="background:var(--green)"></div><div class="dp-row-name">Under: ${p?p.name:'?'}</div><div class="dp-row-val">${FM(s.sub_award_amount||s.subaward_amount)}</div></div>`;
+      });
+      h+=`</div>`;
+    }
+    if(mySubs.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Subcontractors (under this company)</div>`;
+      mySubs.forEach(s=>{const sub=LU.comp[s.subcontractor_id];if(!sub)return;
+        const isLarge=(sub.company_type||'').includes('Large')||(sub.company_type||'').includes('Mid');
+        h+=`<div class="dp-row" onclick="showDetail('company','${s.subcontractor_id}')"><div class="dp-row-dot" style="background:${isLarge?'var(--orange)':'var(--purple)'}"></div><div class="dp-row-name">${sub.name} ${isLarge?'<span style="font-size:9px;color:var(--orange)">(REVERSE)</span>':''}</div><div class="dp-row-val">${FM(s.sub_award_amount||s.subaward_amount)}</div></div>`;
+      });
+      h+=`</div>`;
+    }
+    if(sigs.length){
+      h+=`<div class="dp-section"><div class="dp-sec-title">Hiring / Workforce Signals (${sigs.length})</div>`;
+      sigs.slice(0,10).forEach(s=>{
+        h+=`<div style="padding:4px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.03)"><div style="font-weight:600">${s.job_title||s.labor_category||'Position'}</div><div style="color:var(--text-dim);font-size:11px">${s.technology_keywords||''} ${s.clearance_required?'| '+s.clearance_required:''}</div><div style="color:var(--text-dim);font-size:11px">${s.command_reference||''} ${s.source_platform?'| '+s.source_platform:''}</div></div>`;
+      });
+      if(sigs.length>10)h+=`<div style="font-size:11px;color:var(--text-dim);padding:4px 0">+${sigs.length-10} more</div>`;
+      h+=`</div>`;
+    }
+  }
+
+  body.innerHTML=h;
+  panel.classList.add('open');
+}
+
+function closeDetail(){document.getElementById('detailPanel').classList.remove('open');}
+
+// ── NETWORK GRAPH MODAL ──
+function openNetgraph(conId){
+  const c=LU.con[conId];if(!c)return;
+  const prime=LU.comp[c.prime_contractor_id];
+  const subs=subsForContract(conId);
+  document.getElementById('ngTitle').textContent='ECOSYSTEM — '+(c.description||c.contract_number).toUpperCase();
+  document.getElementById('ngOverlay').classList.add('open');
+  const svg=d3.select('#netgraph-svg');svg.selectAll('*').remove();
+  const W=720,H=476;
+  const nodes=[{id:c.prime_contractor_id,name:prime?prime.name:'Prime',type:'prime',value:c.award_amount||0}];
+  const links=[],ns=new Set([c.prime_contractor_id]);
+  subs.forEach(s=>{const sub=LU.comp[s.subcontractor_id];if(!ns.has(s.subcontractor_id)){nodes.push({id:s.subcontractor_id,name:sub?sub.name:'Sub',type:'sub',value:s.sub_award_amount||s.subaward_amount||0});ns.add(s.subcontractor_id);}links.push({source:c.prime_contractor_id,target:s.subcontractor_id,value:s.sub_award_amount||s.subaward_amount||0});});
+  const defs=svg.append('defs');const f=defs.append('filter').attr('id','glow-ng');f.append('feGaussianBlur').attr('stdDeviation','3').attr('result','blur');f.append('feMerge').selectAll('feMergeNode').data(['blur','SourceGraphic']).join('feMergeNode').attr('in',d=>d);
+  const sim=d3.forceSimulation(nodes).force('link',d3.forceLink(links).id(d=>d.id).distance(120).strength(0.5)).force('charge',d3.forceManyBody().strength(-300)).force('center',d3.forceCenter(W/2,H/2)).force('collision',d3.forceCollide().radius(30));
+  const g=svg.append('g');
+  const link=g.selectAll('line').data(links).join('line').attr('stroke','rgba(139,92,246,0.4)').attr('stroke-width',d=>Math.max(1,Math.min(5,(d.value||0)/3e6))).attr('stroke-dasharray','6 3');
+  const node=g.selectAll('.ng-n').data(nodes).join('g').attr('cursor','pointer');
+  node.append('circle').attr('r',d=>d.type==='prime'?20:14).attr('fill',d=>d.type==='prime'?'#00e87e':'#8b5cf6').attr('stroke',d=>d.type==='prime'?'#00e87e':'#8b5cf6').attr('stroke-width',2).attr('fill-opacity',0.3).attr('filter','url(#glow-ng)');
+  node.append('text').text(d=>d.name.length>18?d.name.slice(0,16)+'…':d.name).attr('text-anchor','middle').attr('dy',d=>d.type==='prime'?30:24).attr('fill','#c8d6e0').attr('font-size','10px').attr('font-family','Rajdhani');
+  node.append('text').text(d=>FM(d.value)).attr('text-anchor','middle').attr('dy',d=>d.type==='prime'?41:35).attr('fill','#5a7080').attr('font-size','9px').attr('font-family','Share Tech Mono');
+  node.on('click',(e,d)=>{closeNetgraph();showDetail('company',d.id);});
+  sim.on('tick',()=>{link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);node.attr('transform',d=>`translate(${d.x},${d.y})`);});
+}
+function closeNetgraph(){document.getElementById('ngOverlay').classList.remove('open');}
+document.getElementById('ngOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeNetgraph();});
+
+// ── SEARCH ──
+const sInput=document.getElementById('searchInput'),sResults=document.getElementById('searchResults');
+sInput.addEventListener('input',()=>{
+  const q=sInput.value.trim().toLowerCase();if(q.length<2){sResults.classList.remove('show');return;}
+  const r=[];
+  DATA.installations.forEach(i=>{if(i.name.toLowerCase().includes(q))r.push({type:'inst',name:i.name,id:i.id,fn:()=>showDetail('installation',i.id)});});
+  DATA.commands.forEach(c=>{if((c.name+' '+(c.abbreviation||'')+' '+(c.mission_area||'')).toLowerCase().includes(q))r.push({type:'cmd',name:(c.abbreviation?c.abbreviation+' — ':'')+c.name,id:c.id,fn:()=>showDetail('command',c.id)});});
+  DATA.companies.forEach(c=>{if(c.name.toLowerCase().includes(q))r.push({type:'company',name:c.name,id:c.id,fn:()=>showDetail('company',c.id)});});
+  DATA.contracts.forEach(c=>{if((c.description||'').toLowerCase().includes(q)||(c.contract_number||'').toLowerCase().includes(q)||(c.naics_description||'').toLowerCase().includes(q))r.push({type:'contract',name:c.description||c.contract_number,id:c.id,fn:()=>showDetail('contract',c.id)});});
+  if(r.length<5)DATA.workforce_signals.forEach(s=>{if((s.technology_keywords||'').toLowerCase().includes(q)){const co=LU.comp[s.company_id];if(co&&!r.find(x=>x.id===co.id))r.push({type:'company',name:co.name+' (tech)',id:co.id,fn:()=>showDetail('company',co.id)});}});
+  if(!r.length){sResults.classList.remove('show');return;}
+  const colors={inst:'background:rgba(232,115,30,0.2);color:var(--orange)',cmd:'background:rgba(14,240,232,0.15);color:var(--cyan)',company:'background:rgba(0,232,126,0.15);color:var(--green)',contract:'background:rgba(139,92,246,0.15);color:var(--purple)'};
+  sResults.innerHTML=r.slice(0,12).map((x,i)=>`<div class="sr-item" data-i="${i}"><span class="sr-tag" style="${colors[x.type]||''}">${x.type}</span><span>${x.name}</span></div>`).join('');
+  sResults.classList.add('show');
+  sResults.querySelectorAll('.sr-item').forEach((el,i)=>{el.addEventListener('click',()=>{r[i].fn();sResults.classList.remove('show');sInput.value='';
+    // Pan map if on map view
+    if(currentView==='map'&&leafletMap){
+      let co;const x=r[i];
+      if(x.type==='inst'){const inst=LU.inst[x.id];if(inst)co=[inst.lat,inst.lon];}
+      else if(x.type==='company'){const c=LU.comp[x.id];if(c&&c._ll)co=c._ll;}
+      if(co)leafletMap.flyTo(co,13,{duration:0.5});
+    }
+  });});
+});
+sInput.addEventListener('blur',()=>{setTimeout(()=>sResults.classList.remove('show'),200);});
+
+// ── TABLES ──
+function renderContracts(){
+  document.getElementById('t-contracts').innerHTML=[...DATA.contracts].sort((a,b)=>(b.award_amount||0)-(a.award_amount||0)).map(c=>{
+    const sb=c.data_source?.includes('press')?'badge-press':c.data_source?.includes('api')?'badge-api':'badge-est';
+    const sl=c.data_source?.includes('press')?'PRESS':c.data_source?.includes('api')?'API':'EST';
+    const prime=LU.comp[c.prime_contractor_id];
+    return`<tr onclick="showDetail('contract','${c.id}')"><td><div style="font-weight:600">${c.contract_number||'—'}</div><div style="font-size:10px;color:var(--text-dim)">${(c.description||'').substring(0,55)}</div></td><td style="color:var(--cyan)">${CM(c.command_id)}</td><td>${CN(c.prime_contractor_id)}</td><td>${prime?setAsideBadges(prime):''}</td><td style="color:var(--orange);font-family:'Orbitron';font-size:12px">${FM(c.award_amount)}</td><td style="font-family:'Share Tech Mono';font-size:11px">${c.end_date||'—'}</td><td><span class="badge ${sb}">${sl}</span></td></tr>`;
+  }).join('');
+}
+
+function renderCompanies(){
+  const cd=DATA.companies.map(c=>{
+    const pv=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);
+    const sv=DATA.subcontracts.filter(s=>s.subcontractor_id===c.id).reduce((s2,s3)=>s2+(s3.sub_award_amount||s3.subaward_amount||0),0);
+    const sc=DATA.workforce_signals.filter(w=>w.company_id===c.id).length;
+    const revSubs=largePrimesSubbingUnder(c.id);
+    return{...c,pv,sv,tv:pv+sv,sc,revCount:revSubs.length};
+  }).filter(c=>c.tv>0||c.sc>0).sort((a,b)=>b.tv-a.tv);
+  document.getElementById('t-companies').innerHTML=cd.map(c=>{
+    return`<tr onclick="showDetail('company','${c.id}')"><td style="font-weight:600">${c.name}</td><td style="font-size:11px;color:var(--text-dim)">${c.company_type||''}</td><td>${setAsideBadges(c)}</td><td style="color:var(--orange);font-family:'Orbitron';font-size:12px">${FM(c.pv)}</td><td style="color:var(--purple);font-family:'Orbitron';font-size:12px">${FM(c.sv)}</td><td>${c.revCount?`<span style="color:var(--orange);font-weight:700">${c.revCount} large</span>`:'—'}</td><td>${c.sc?`<span style="color:var(--cyan)">${c.sc}</span>`:'—'}</td></tr>`;
+  }).join('');
+}
+
+function renderSignals(){
+  document.getElementById('t-signals').innerHTML=DATA.workforce_signals.map(ws=>{
+    const cr=DATA.correlations.find(c=>c.workforce_signal_id===ws.id);
+    const cc=cr?LU.con[cr.contract_id]:null;
+    const conf=cr?cr.confidence_score:0;
+    const clr=conf>0.7?'var(--green)':conf>0.5?'var(--orange)':'var(--red)';
+    return`<tr><td>${CN(ws.company_id)}</td><td>${ws.job_title||''}</td><td style="color:var(--cyan);font-family:'Share Tech Mono';font-size:11px">${ws.command_reference||'—'}</td><td style="font-size:11px">${ws.clearance_required||'—'}</td><td>${cc?`<span style="cursor:pointer;color:var(--cyan)" onclick="showDetail('contract','${cc.id}')">${(cc.contract_number||cc.description||'').substring(0,20)}</span>`:'—'}</td><td>${cr?`<div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:${conf*100}%;background:${clr}"></div></div><div class="conf-val" style="color:${clr}">${(conf*100).toFixed(0)}%</div></div>`:'—'}</td></tr>`;
+  }).join('');
+}
+
+function buildTicker(){
+  const t=document.getElementById('ticker');
+  let html='<div class="ticker-inner">';
+  const items=DATA.workforce_signals.map(ws=>`<span class="ticker-item"><span class="ticker-dot"></span><span class="ticker-company">${CN(ws.company_id)}</span><span class="ticker-title">${ws.job_title||''}</span><span class="ticker-cmd">${ws.command_reference||''}</span></span>`).join('');
+  html+=items+items+'</div>';t.innerHTML=html;
+}
+
+function renderBrief(){
+  const cr=DATA.companies.map(c=>{const pv=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);const sv=DATA.subcontracts.filter(s=>s.subcontractor_id===c.id).reduce((s2,s3)=>s2+(s3.sub_award_amount||s3.subaward_amount||0),0);const sc=DATA.workforce_signals.filter(w=>w.company_id===c.id).length;const pc=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).length;return{...c,pv,sv,tv:pv+sv,sc,pc};}).filter(c=>c.tv>0).sort((a,b)=>b.tv-a.tv);
+  const mx=cr[0]?.tv||1;
+  const exp=DATA.contracts.filter(c=>c.end_date&&monthsUntil(c.end_date)<=24).sort((a,b)=>(a.end_date||'').localeCompare(b.end_date||''));
+  const cmdS=DATA.commands.map(cmd=>{const cts=contractsByCmd(cmd.id);return{...cmd,tv:cts.reduce((s,c)=>s+(c.award_amount||0),0),cc:cts.length,primes:cts.map(c=>CN(c.prime_contractor_id)).join(', ')};}).filter(c=>c.cc>0).sort((a,b)=>b.tv-a.tv);
+  const hbc={};DATA.workforce_signals.forEach(ws=>{if(!hbc[ws.company_id])hbc[ws.company_id]=[];hbc[ws.company_id].push(ws);});
+  const hr=Object.entries(hbc).sort((a,b)=>b[1].length-a[1].length);
+
+  document.getElementById('report-out').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <div><h1 style="font-family:'Orbitron';font-size:22px;font-weight:800;letter-spacing:3px;color:var(--orange)">CAPTURE INTELLIGENCE BRIEF</h1><p style="color:var(--text-dim);font-size:12px;font-family:'Share Tech Mono';letter-spacing:1px">Little Creek Contract Ecosystem | ${new Date().toLocaleDateString()}</p></div>
+    <button class="export-btn" onclick="exportBrief()">EXPORT</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px">
+    ${[{v:DATA.contracts.length,l:'CONTRACTS',c:'var(--cyan)'},{v:FM(DATA.contracts.reduce((s,c)=>s+(c.award_amount||0),0)),l:'VALUE',c:'var(--orange)'},{v:cr.length,l:'COMPANIES',c:'var(--green)'},{v:exp.length,l:'EXPIRING <24MO',c:'var(--red)'}].map(s=>`<div class="rcard" style="text-align:center"><div style="font-family:'Orbitron';font-size:24px;font-weight:700;color:${s.c}">${s.v}</div><div style="font-family:'Share Tech Mono';font-size:8px;color:var(--text-dim);letter-spacing:1px">${s.l}</div></div>`).join('')}
+  </div>
+  <div class="report-section"><h2>TOP PRIMES <div class="line"></div></h2>
+    ${cr.filter(c=>c.pv>0).slice(0,8).map(c=>`<div class="rcard"><div style="display:flex;justify-content:space-between;align-items:center"><h4 style="margin:0">${c.name} ${setAsideBadges(c)}</h4><span style="color:var(--orange);font-family:'Orbitron';font-size:14px;font-weight:700">${FM(c.pv)}</span></div><div style="font-size:11px;color:var(--text-dim);margin-top:3px">${c.company_type} | ${c.pc} contract(s) | ${c.sc} signals</div><div class="rbar"><div class="rbar-fill" style="width:${(c.pv/mx)*100}%;background:linear-gradient(90deg,var(--orange),var(--orange-glow))"></div></div></div>`).join('')}
+  </div>
+  <div class="report-section"><h2>COMMAND SUMMARY <div class="line"></div></h2>
+    ${cmdS.map(c=>`<div class="rcard"><div style="display:flex;justify-content:space-between"><h4 style="margin:0;color:var(--cyan)">${c.abbreviation||c.name}</h4><span style="color:var(--orange);font-weight:700">${FM(c.tv)}</span></div><div style="font-size:11px;color:var(--text-dim)">${c.mission_area} | ${c.cc} contract(s)</div></div>`).join('')}
+  </div>
+  <div class="report-section"><h2>EXPIRING CONTRACTS <div class="line"></div></h2>
+    ${exp.map(c=>{const m=monthsUntil(c.end_date);return`<div class="rcard"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">${CN(c.prime_contractor_id)}</div><div style="font-size:10px;color:var(--text-dim)">${CM(c.command_id)} | ${(c.description||'').substring(0,50)}</div></div><div style="text-align:right"><div style="color:${expColor(m)};font-family:'Share Tech Mono';font-size:12px">${c.end_date} (${Math.round(m)}mo)</div><div style="color:var(--orange)">${FM(c.award_amount)}</div></div></div></div>`;}).join('')}
+  </div>
+  <div class="report-section"><h2>HIRING ACTIVITY <div class="line"></div></h2>
+    ${hr.slice(0,8).map(([cid,sigs])=>`<div class="rcard"><h4>${CN(cid)} <span style="color:var(--cyan);font-size:12px">(${sigs.length})</span></h4>${sigs.slice(0,5).map(s=>`<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px"><span style="font-weight:500">${s.job_title||''}</span><span style="color:var(--text-dim)"> | ${s.command_reference||''} | ${s.clearance_required||''}</span></div>`).join('')}</div>`).join('')}
+  </div>`;
+}
+
+function exportBrief(){const t=document.getElementById('report-out').innerText;const b=new Blob([t],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`mica_brief_${new Date().toISOString().slice(0,10)}.txt`;a.click();}
+
+// ── INIT ──
+function init(){
+  // Nav
+  const nav=document.getElementById('navTabs');
+  VIEWS.forEach((v,i)=>{
+    const b=document.createElement('div');
+    b.className='nav-item'+(i===0?' active':'');
+    b.dataset.view=v;
+    b.textContent=v.toUpperCase();
+    b.onclick=()=>switchView(v);
+    nav.appendChild(b);
+  });
+  // Stats
+  document.getElementById('s-contracts').textContent=DATA.contracts.length;
+  const tv=DATA.contracts.reduce((s,c)=>s+(c.award_amount||0),0);
+  document.getElementById('s-value').textContent=FM(tv);
+  document.getElementById('s-companies').textContent=DATA.companies.length;
+  document.getElementById('s-signals').textContent=DATA.workforce_signals.length;
+  document.getElementById('bi-edges').textContent=DATA.edges.length+' EDGES';
+  document.getElementById('bi-corr').textContent=DATA.correlations.length+' CORRELATIONS';
+  // Init default view
+  initMap();
+  buildTicker();
+  renderContracts();
+  renderCompanies();
+  renderSignals();
+  renderBrief();
+}
+
+// Global event delegation for popup links (Leaflet popups don't support inline onclick reliably)
+document.addEventListener('click',function(e){
+  const link=e.target.closest('[data-action]');
+  if(!link)return;
+  e.preventDefault();e.stopPropagation();
+  const action=link.dataset.action;
+  const id=link.dataset.id;
+  if(action==='detail'){
+    const type=link.dataset.type;
+    showDetail(type,id);
+  }else if(action==='netgraph'){
+    openNetgraph(id);
+  }
+});
+
+// Also expose to window as fallback
+window.showDetail=showDetail;
+window.closeDetail=closeDetail;
+window.openNetgraph=openNetgraph;
+window.closeNetgraph=closeNetgraph;
+window.switchView=switchView;
+window.exportBrief=exportBrief;
+
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8);},1000);
+init();
+</script>
+</body>
+</html>
