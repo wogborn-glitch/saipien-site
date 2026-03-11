@@ -228,9 +228,55 @@ tr:hover{background:rgba(14,240,232,0.03);}
 .auth-corner-tr{top:-1px;right:-1px;border-top:2px solid #0ef0e8;border-right:2px solid #0ef0e8;}
 .auth-corner-bl{bottom:-1px;left:-1px;border-bottom:2px solid #e8731e;border-left:2px solid #e8731e;}
 .auth-corner-br{bottom:-1px;right:-1px;border-bottom:2px solid #e8731e;border-right:2px solid #e8731e;}
+
+/* ── LANDSCAPE LOCK OVERLAY ── */
+#rotate-overlay{display:none;position:fixed;inset:0;background:#080c12;z-index:99999;flex-direction:column;align-items:center;justify-content:center;gap:20px;color:#0ef0e8;text-align:center;padding:40px;}
+#rotate-overlay .rotate-icon{font-size:48px;animation:rotPulse 2s ease-in-out infinite;}
+#rotate-overlay .rotate-title{font-family:'Orbitron',sans-serif;font-size:16px;letter-spacing:4px;color:#e8731e;}
+#rotate-overlay .rotate-hint{font-family:'Rajdhani',sans-serif;font-size:14px;color:#5a7080;max-width:260px;line-height:1.5;}
+@keyframes rotPulse{0%,100%{opacity:1;transform:rotate(0deg);}50%{opacity:0.5;transform:rotate(90deg);}}
+
+@media (max-width:768px) and (orientation:portrait){
+  #rotate-overlay{display:flex !important;}
+}
+
+/* ── MOBILE LANDSCAPE TWEAKS ── */
+@media (max-height:500px){
+  .header{height:40px;padding:0 8px;gap:2px;}
+  .logo{font-size:14px;letter-spacing:3px;}
+  .logo-sub{display:none;}
+  .nav-item{font-size:9px;padding:4px 8px;letter-spacing:1px;}
+  .topstats{gap:8px;}
+  .ts-val{font-size:11px;}
+  .ts-lbl{font-size:7px;}
+  .search-wrap{max-width:200px;}
+  .search-wrap input{padding:5px 8px 5px 24px;font-size:11px;}
+  .layer-panel{width:180px;min-width:180px;}
+  .lp-hdr{padding:8px 10px 6px;font-size:8px;}
+  .lt{padding:4px 10px;}
+  .lt-name{font-size:10px;}
+  .lt-ct{font-size:8px;}
+  .lp-sec{padding:6px 10px 2px;font-size:7px;}
+  .legend-row{font-size:9px;}
+  .bottom-bar{height:24px;font-size:9px;padding:0 8px;gap:10px;}
+  .detail-panel{width:280px;}
+}
+@media (max-width:700px) and (orientation:landscape){
+  .layer-panel{width:150px;min-width:150px;}
+  .nav-item{padding:4px 6px;font-size:8px;letter-spacing:0.5px;}
+  .search-wrap{max-width:150px;}
+  .topstats .ts:nth-child(n+3){display:none;}
+}
 </style>
 </head>
 <body>
+
+<!-- LANDSCAPE LOCK OVERLAY (mobile portrait) -->
+<div id="rotate-overlay">
+  <div class="rotate-icon">📱</div>
+  <div class="rotate-title">ROTATE DEVICE</div>
+  <div class="rotate-hint">MICA requires landscape orientation for optimal intelligence display.</div>
+</div>
 
 <!-- AUTH GATE -->
 <div id="auth-gate">
