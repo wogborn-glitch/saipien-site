@@ -175,14 +175,16 @@
   /* Agent colors */
   .agent-construct .agent-tag { color: #ff6600; border-color: #ff6600; }
   .agent-construct { border-left-color: #ff6600; }
-  .agent-anomaly .agent-tag { color: #00e5ff; border-color: #00e5ff; }
-  .agent-anomaly { border-left-color: #00e5ff; }
-  .agent-website .agent-tag { color: #00ff41; border-color: #00ff41; }
-  .agent-website { border-left-color: #00ff41; }
-  .agent-builder .agent-tag { color: #ffcc00; border-color: #ffcc00; }
-  .agent-builder { border-left-color: #ffcc00; }
-  .agent-d .agent-tag { color: #ff00ff; border-color: #ff00ff; }
-  .agent-d { border-left-color: #ff00ff; }
+  .agent-genesis .agent-tag { color: #00ff41; border-color: #00ff41; }
+  .agent-genesis { border-left-color: #00ff41; }
+  .agent-anomaly .agent-tag { color: #ff4040; border-color: #ff4040; }
+  .agent-anomaly { border-left-color: #ff4040; }
+  .agent-website .agent-tag { color: #4080ff; border-color: #4080ff; }
+  .agent-website { border-left-color: #4080ff; }
+  .agent-builder .agent-tag { color: #cc88ff; border-color: #cc88ff; }
+  .agent-builder { border-left-color: #cc88ff; }
+  .agent-d .agent-tag { color: #ffd700; border-color: #ffd700; }
+  .agent-d { border-left-color: #ffd700; }
   .agent-unknown .agent-tag { color: #555; border-color: #555; }
   .agent-unknown { border-left-color: #555; }
 
@@ -321,6 +323,7 @@
   <div class="input-bar">
     <select id="agent-select">
       <option value="d">D</option>
+      <option value="genesis">GENESIS</option>
       <option value="construct">CONSTRUCT</option>
       <option value="website">WEBSITE</option>
       <option value="anomaly">ANOMALY</option>
@@ -338,9 +341,52 @@
   const HASH = 'cc2970e0313e8e0280afceb740ff0e441e157ed1f8fc5d8a1309173858be1fb9';
   const API = 'https://app.saipien.net/agent-log';
   const POLL_MS = 15000;
+  const STORAGE_KEY = 'comms-archive';
   let pollTimer = null;
-  let messages = [];
+  let archive = [];       // persistent local archive — never shrinks
   let isConnected = false;
+
+  // ── Archive helpers ──
+  // Generate a fingerprint for deduplication
+  function msgKey(m) {
+    return (m.agent || '') + '|' + (m.message || '') + '|' + (m.timestamp || '');
+  }
+
+  // Load archive from localStorage
+  function loadArchive() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) archive = JSON.parse(raw);
+    } catch(e) { archive = []; }
+  }
+
+  // Save archive to localStorage
+  function saveArchive() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(archive));
+    } catch(e) {} // localStorage full — degrade gracefully
+  }
+
+  // Merge new messages into archive without duplicates
+  // Archive only grows — server returning fewer messages never removes local ones
+  function mergeMessages(incoming) {
+    if (!incoming || !incoming.length) return;
+    var existing = new Set(archive.map(msgKey));
+    var added = 0;
+    incoming.forEach(function(m) {
+      var key = msgKey(m);
+      if (!existing.has(key)) {
+        archive.push(m);
+        existing.add(key);
+        added++;
+      }
+    });
+    // Sort by timestamp (oldest first)
+    archive.sort(function(a, b) {
+      return new Date(a.timestamp || 0) - new Date(b.timestamp || 0);
+    });
+    if (added > 0) saveArchive();
+  }
 
   // ── Auth ──
   const authGate = document.getElementById('auth-gate');
@@ -375,14 +421,10 @@
 
   // ── Comms ──
   function startComms() {
-    // Load cached messages immediately so feed is never empty on refresh
-    var cached = localStorage.getItem('comms-messages');
-    if (cached) {
-      try {
-        messages = JSON.parse(cached);
-        renderFeed();
-      } catch(e) {}
-    }
+    // Load local archive immediately — feed is never empty if we have history
+    loadArchive();
+    if (archive.length > 0) renderFeed();
+    // Then fetch from server and merge
     fetchMessages();
     pollTimer = setInterval(fetchMessages, POLL_MS);
   }
@@ -394,8 +436,8 @@
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
       const msgs = Array.isArray(data) ? data : (data.messages || []);
-      messages = msgs;
-      localStorage.setItem('comms-messages', JSON.stringify(msgs));
+      // Merge server messages into local archive (never replaces)
+      mergeMessages(msgs);
       renderFeed();
       pill.textContent = 'CONNECTED';
       pill.className = 'status-pill connected';
@@ -404,8 +446,8 @@
       pill.textContent = 'OFFLINE';
       pill.className = 'status-pill disconnected';
       isConnected = false;
-      // Still show cached messages if we have them
-      if (messages.length > 0) renderFeed();
+      // Archive still renders — messages are never lost
+      if (archive.length > 0) renderFeed();
     }
   }
 
@@ -415,7 +457,14 @@
     if (empty) empty.remove();
 
     feed.innerHTML = '';
-    messages.forEach(m => {
+
+    // Show message count
+    var countDiv = document.createElement('div');
+    countDiv.style.cssText = 'text-align:center;font-size:0.6rem;color:#333;letter-spacing:2px;padding:4px 0 8px;';
+    countDiv.textContent = archive.length + ' MESSAGE' + (archive.length !== 1 ? 'S' : '') + ' IN ARCHIVE';
+    feed.appendChild(countDiv);
+
+    archive.forEach(function(m) {
       const div = document.createElement('div');
       const agentKey = (m.agent || 'unknown').toLowerCase();
       div.className = 'msg agent-' + agentKey;
@@ -452,9 +501,10 @@
     if (!body) return;
     const agent = agentSelect.value;
 
-    // Optimistic local add
+    // Add to local archive immediately (optimistic)
     const now = new Date().toISOString();
-    messages.push({ agent: agent, message: body, timestamp: now });
+    var newMsg = { agent: agent, message: body, timestamp: now };
+    mergeMessages([newMsg]);
     renderFeed();
     msgInput.value = '';
 
@@ -464,24 +514,23 @@
       mode: 'cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ agent: agent, message: body })
-    }).then(res => {
+    }).then(function(res) {
       if (res.ok) {
         showToast('SENT');
-        // Update connection status
         const pill = document.getElementById('status-pill');
         pill.textContent = 'CONNECTED';
         pill.className = 'status-pill connected';
         isConnected = true;
       } else {
-        showToast('SEND FAILED — ENDPOINT NOT READY');
+        showToast('SEND FAILED — SAVED LOCALLY');
       }
-    }).catch(() => {
-      showToast('OFFLINE — MESSAGE SAVED LOCALLY');
+    }).catch(function() {
+      showToast('OFFLINE — SAVED TO LOCAL ARCHIVE');
     });
   }
 
   sendBtn.addEventListener('click', sendMessage);
-  msgInput.addEventListener('keydown', (e) => {
+  msgInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') sendMessage();
   });
 
