@@ -110,7 +110,79 @@
 </style>
 </head>
 <body>
-<div id="root" style="position:relative;z-index:1;"></div>
+
+<!-- AUTH GATE -->
+<style>
+#auth-gate{position:fixed;inset:0;z-index:99999;background:#0a0008;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+#auth-gate.hidden{display:none;}
+.ag-box{border:1px solid rgba(255,0,102,0.2);padding:48px 40px 36px;text-align:center;position:relative;background:rgba(12,0,10,0.95);min-width:320px;}
+.ag-box::before{content:'';position:absolute;inset:-1px;border:1px solid rgba(255,0,102,0.06);pointer-events:none;}
+.ag-corner{position:absolute;width:12px;height:12px;border-color:#ff0066;border-style:solid;border-width:0;}
+.ag-corner-tl{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px;}
+.ag-corner-tr{top:-1px;right:-1px;border-top-width:2px;border-right-width:2px;}
+.ag-corner-bl{bottom:-1px;left:-1px;border-bottom-width:2px;border-left-width:2px;}
+.ag-corner-br{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px;}
+.ag-logo{font-family:'VT323',monospace;font-size:36px;color:#ff0066;letter-spacing:8px;text-shadow:0 0 20px rgba(255,0,102,0.4),2px 2px 0 rgba(255,0,102,0.15),-1px -1px 0 rgba(0,200,255,0.1);}
+.ag-sub{font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:6px;color:rgba(255,255,255,0.25);margin:8px 0 28px;text-transform:uppercase;}
+.ag-label{font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:3px;color:rgba(255,0,102,0.5);margin-bottom:16px;text-transform:uppercase;}
+#auth-pw{width:100%;padding:10px 14px;background:rgba(255,0,102,0.04);border:1px solid rgba(255,0,102,0.15);color:#ff0066;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:2px;text-align:center;outline:none;}
+#auth-pw:focus{border-color:rgba(255,0,102,0.4);box-shadow:0 0 12px rgba(255,0,102,0.1);}
+#auth-pw::placeholder{color:rgba(255,0,102,0.2);}
+#auth-btn{width:100%;margin-top:12px;padding:10px;background:transparent;border:1px solid rgba(255,0,102,0.25);color:#ff0066;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:4px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;}
+#auth-btn:hover{background:rgba(255,0,102,0.08);border-color:#ff0066;text-shadow:0 0 8px rgba(255,0,102,0.4);}
+.ag-error{font-family:'Share Tech Mono',monospace;font-size:11px;color:#ff2040;margin-top:14px;height:16px;letter-spacing:1px;}
+</style>
+
+<div id="auth-gate">
+  <div class="ag-box">
+    <div class="ag-corner ag-corner-tl"></div>
+    <div class="ag-corner ag-corner-tr"></div>
+    <div class="ag-corner ag-corner-bl"></div>
+    <div class="ag-corner ag-corner-br"></div>
+    <div class="ag-logo">AUGUR</div>
+    <div class="ag-sub">Probability Cascade Engine</div>
+    <div class="ag-label">Authorization Required</div>
+    <input type="password" id="auth-pw" placeholder="Enter access code" autocomplete="off" autofocus>
+    <button id="auth-btn">AUTHENTICATE</button>
+    <div class="ag-error" id="auth-err"></div>
+  </div>
+</div>
+
+<div id="root" style="position:relative;z-index:1;display:none;"></div>
+
+<script>
+// ── AUTH GATE ──
+(function(){
+  const HASH='3654dd087e3cc1d131fe05c29d413be06970a08190c182366a9199642d03527d';
+  async function sha256(str){
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  const gate=document.getElementById('auth-gate');
+  const app=document.getElementById('root');
+  const pw=document.getElementById('auth-pw');
+  const btn=document.getElementById('auth-btn');
+  const err=document.getElementById('auth-err');
+
+  if(sessionStorage.getItem('augur-auth')==='1'){
+    gate.classList.add('hidden');app.style.display='';
+  }
+
+  async function tryAuth(){
+    const h=await sha256(pw.value);
+    if(h===HASH){
+      sessionStorage.setItem('augur-auth','1');
+      gate.classList.add('hidden');app.style.display='';
+    }else{
+      err.textContent='ACCESS DENIED — Invalid credentials';
+      pw.value='';pw.focus();
+      setTimeout(()=>{err.textContent='';},3000);
+    }
+  }
+  btn.addEventListener('click',tryAuth);
+  pw.addEventListener('keydown',function(e){if(e.key==='Enter')tryAuth();});
+})();
+</script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
