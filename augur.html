@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>AUGUR // SAIPIEN</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0008;
+    --bg-tint: #120010;
+    --panel: rgba(12,0,10,0.95);
+    --magenta: #ff0066;
+    --magenta-hot: #ff2080;
+    --magenta-deep: #cc0050;
+    --magenta-dim: rgba(255,0,102,0.06);
+    --magenta-line: rgba(255,0,102,0.12);
+    --magenta-glow: rgba(255,0,102,0.4);
+    --crimson: #88002a;
+    --white: #ffffff;
+    --white-dim: rgba(255,255,255,0.5);
+    --white-faint: rgba(255,255,255,0.12);
+    --ghost: rgba(255,255,255,0.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); font-family: 'Rajdhani', sans-serif; color: var(--white); overflow: hidden; }
+
+  /* HEAVY SCANLINES */
+  body::after {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 9999;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px,
+      transparent 1px, transparent 3px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  /* MAGENTA VIGNETTE */
+  body::before {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 9998;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(255,0,102,0.04) 80%, rgba(255,0,102,0.08) 100%);
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes glitchShift {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-3px); }
+    40% { transform: translateX(2px); }
+    60% { transform: translateX(-1px); }
+    80% { transform: translateX(4px); }
+  }
+  @keyframes glitchBar {
+    0% { top: -10%; opacity: 0; }
+    10% { opacity: 0.8; }
+    15% { opacity: 0; }
+    40% { top: 30%; opacity: 0; }
+    45% { opacity: 0.6; }
+    50% { opacity: 0; }
+    70% { top: 70%; opacity: 0; }
+    75% { opacity: 0.9; }
+    80% { opacity: 0; }
+    100% { top: 110%; opacity: 0; }
+  }
+  @keyframes cursorBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  @keyframes shockRing {
+    0%, 100% { stroke-opacity: 0.3; }
+    50% { stroke-opacity: 0.9; }
+  }
+  @keyframes bootGlitch {
+    0%, 7%, 10%, 17%, 20%, 90%, 93%, 96%, 100% { opacity: 1; transform: translate(0,0); }
+    8% { opacity: 0.8; transform: translate(-4px, 0); }
+    9% { opacity: 0.6; transform: translate(3px, 1px); }
+    18% { opacity: 0.7; transform: translate(2px, -1px); }
+    19% { opacity: 0.9; transform: translate(-2px, 0); }
+    91% { opacity: 0.8; transform: translate(-3px, 1px); }
+    92% { opacity: 0.5; transform: translate(5px, 0); }
+    94% { opacity: 0.9; transform: translate(-1px, -1px); }
+    95% { opacity: 0.6; transform: translate(3px, 0); }
+  }
+  @keyframes hScanRace {
+    0% { transform: translateY(-100vh); }
+    100% { transform: translateY(100vh); }
+  }
+
+  input::placeholder { color: rgba(255,255,255,0.2) !important; }
+  ::-webkit-scrollbar { width: 2px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,0,102,0.2); }
+
+  .label {
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+  }
+  .data-text { font-family: 'Share Tech Mono', monospace; }
+  .vt { font-family: 'VT323', monospace; }
+</style>
+</head>
+<body>
+<div id="root" style="position:relative;z-index:1;"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ═══════════════════════════════════════════════════════════
+// AUGUR // SAIPIEN — PROBABILITY CASCADE ENGINE
+// ═══════════════════════════════════════════════════════════
+
+const NODES = [
+  { id: "kazakhstan", label: "Kazakhstan", type: "country", domain: "geo", desc: "Major titanium & uranium producer" },
+  { id: "russia", label: "Russia", type: "country", domain: "geo", desc: "Energy superpower, key transit state" },
+  { id: "belarus", label: "Belarus", type: "country", domain: "geo", desc: "Rail corridor to Eastern Europe" },
+  { id: "ukraine", label: "Ukraine", type: "country", domain: "military", desc: "Active conflict zone, grain exporter" },
+  { id: "china", label: "China", type: "country", domain: "commercial", desc: "Manufacturing hub, rare earth monopoly" },
+  { id: "taiwan", label: "Taiwan", type: "country", domain: "commercial", desc: "Semiconductor manufacturing center" },
+  { id: "usa", label: "United States", type: "country", domain: "geo", desc: "Defense & tech superpower" },
+  { id: "germany", label: "Germany", type: "country", domain: "commercial", desc: "European industrial engine" },
+  { id: "japan", label: "Japan", type: "country", domain: "commercial", desc: "Auto & electronics manufacturing" },
+  { id: "south_korea", label: "South Korea", type: "country", domain: "commercial", desc: "Semiconductor & shipbuilding" },
+  { id: "saudi_arabia", label: "Saudi Arabia", type: "country", domain: "geo", desc: "Oil production leader" },
+  { id: "australia", label: "Australia", type: "country", domain: "commercial", desc: "Lithium & iron ore exporter" },
+  { id: "titanium", label: "Titanium Supply", type: "commodity", domain: "commercial", desc: "Critical aerospace & defense metal" },
+  { id: "uranium", label: "Uranium Supply", type: "commodity", domain: "geo", desc: "Nuclear fuel" },
+  { id: "rare_earths", label: "Rare Earth Elements", type: "commodity", domain: "commercial", desc: "Essential for electronics & magnets" },
+  { id: "semiconductors", label: "Semiconductor Supply", type: "commodity", domain: "commercial", desc: "Advanced chips (3nm-7nm)" },
+  { id: "oil_supply", label: "Global Oil Supply", type: "energy", domain: "commercial", desc: "Crude oil availability" },
+  { id: "natural_gas", label: "Natural Gas (EU)", type: "energy", domain: "commercial", desc: "European gas supply" },
+  { id: "wheat", label: "Global Wheat Supply", type: "commodity", domain: "commercial", desc: "Grain from Black Sea region" },
+  { id: "lithium", label: "Lithium Supply", type: "commodity", domain: "commercial", desc: "Battery-grade lithium" },
+  { id: "neon_gas", label: "Neon Gas Supply", type: "commodity", domain: "commercial", desc: "Critical for chip lithography" },
+  { id: "belarus_rail", label: "Belarus Rail Corridor", type: "route", domain: "infrastructure", desc: "Key east-west rail transit" },
+  { id: "black_sea_route", label: "Black Sea Shipping", type: "route", domain: "infrastructure", desc: "Grain & oil export route" },
+  { id: "suez_canal", label: "Suez Canal", type: "route", domain: "infrastructure", desc: "12% of global trade" },
+  { id: "taiwan_strait", label: "Taiwan Strait", type: "route", domain: "infrastructure", desc: "Critical shipping lane" },
+  { id: "nord_stream", label: "Nord Stream Pipeline", type: "route", domain: "infrastructure", desc: "Gas pipeline to EU" },
+  { id: "trans_siberian", label: "Trans-Siberian Rail", type: "route", domain: "infrastructure", desc: "Russia-Asia freight corridor" },
+  { id: "boeing", label: "Boeing", type: "company", domain: "commercial", desc: "Aircraft manufacturer" },
+  { id: "airbus", label: "Airbus", type: "company", domain: "commercial", desc: "Aircraft manufacturer" },
+  { id: "tsmc", label: "TSMC", type: "facility", domain: "commercial", desc: "World's largest chip foundry" },
+  { id: "aircraft_production", label: "Global Aircraft Production", type: "product", domain: "commercial", desc: "Commercial & military aircraft output" },
+  { id: "ev_production", label: "EV Production", type: "product", domain: "commercial", desc: "Electric vehicle manufacturing" },
+  { id: "smartphone_production", label: "Smartphone Production", type: "product", domain: "commercial", desc: "Global handset manufacturing" },
+  { id: "defense_readiness", label: "NATO Defense Readiness", type: "military", domain: "military", desc: "Alliance combat preparedness" },
+  { id: "ukraine_supply", label: "Ukraine Supply Lines", type: "military", domain: "military", desc: "Western aid delivery routes" },
+  { id: "eu_energy_prices", label: "EU Energy Prices", type: "index", domain: "commercial", desc: "European wholesale energy cost" },
+  { id: "food_prices", label: "Global Food Prices", type: "index", domain: "commercial", desc: "FAO food price index" },
+  { id: "nvidia", label: "NVIDIA", type: "company", domain: "commercial", desc: "GPU & AI chip leader" },
+  { id: "apple", label: "Apple", type: "company", domain: "commercial", desc: "Consumer electronics giant" },
+  { id: "judge", label: "Aaron Judge", type: "player", domain: "sports", desc: "Yankees OF, MVP-caliber" },
+  { id: "ohtani", label: "Shohei Ohtani", type: "player", domain: "sports", desc: "Dodgers two-way star" },
+  { id: "mahomes", label: "Patrick Mahomes", type: "player", domain: "sports", desc: "Chiefs QB, franchise player" },
+  { id: "yankees", label: "NY Yankees", type: "team", domain: "sports", desc: "AL East contender" },
+  { id: "dodgers", label: "LA Dodgers", type: "team", domain: "sports", desc: "NL West powerhouse" },
+  { id: "chiefs", label: "KC Chiefs", type: "team", domain: "sports", desc: "AFC contender" },
+  { id: "yankees_offense", label: "Yankees Offense", type: "index", domain: "sports", desc: "Team offensive production" },
+  { id: "yankees_record", label: "Yankees Win-Loss Record", type: "index", domain: "sports", desc: "Season record projection" },
+  { id: "dodgers_rotation", label: "Dodgers Pitching", type: "index", domain: "sports", desc: "Rotation effectiveness" },
+  { id: "dodgers_record", label: "Dodgers Win-Loss Record", type: "index", domain: "sports", desc: "Season record projection" },
+  { id: "chiefs_offense", label: "Chiefs Offense", type: "index", domain: "sports", desc: "Offensive production" },
+  { id: "chiefs_record", label: "Chiefs Win-Loss Record", type: "index", domain: "sports", desc: "Season record projection" },
+  { id: "al_pennant", label: "AL Pennant Race", type: "event", domain: "sports", desc: "American League championship odds" },
+  { id: "world_series", label: "World Series Odds", type: "event", domain: "sports", desc: "Championship probability" },
+];
+
+const EDGES = [
+  { source: "kazakhstan", target: "titanium", weight: 0.65, label: "40% of global sponge titanium" },
+  { source: "titanium", target: "aircraft_production", weight: 0.7, label: "critical airframe material" },
+  { source: "titanium", target: "boeing", weight: 0.6, label: "fuselage & engine components" },
+  { source: "titanium", target: "airbus", weight: 0.55, label: "structural components" },
+  { source: "boeing", target: "aircraft_production", weight: 0.5, label: "major producer" },
+  { source: "airbus", target: "aircraft_production", weight: 0.5, label: "major producer" },
+  { source: "aircraft_production", target: "defense_readiness", weight: 0.35, label: "military aircraft pipeline" },
+  { source: "belarus", target: "belarus_rail", weight: 0.9, label: "controls rail infrastructure" },
+  { source: "belarus_rail", target: "ukraine_supply", weight: 0.55, label: "northern supply route" },
+  { source: "ukraine_supply", target: "defense_readiness", weight: 0.45, label: "allied materiel flow" },
+  { source: "russia", target: "belarus", weight: 0.7, label: "political & military influence" },
+  { source: "taiwan", target: "tsmc", weight: 0.95, label: "home of TSMC fabs" },
+  { source: "tsmc", target: "semiconductors", weight: 0.85, label: "90% of advanced chips" },
+  { source: "taiwan_strait", target: "tsmc", weight: 0.6, label: "shipping lane" },
+  { source: "semiconductors", target: "nvidia", weight: 0.8, label: "GPU dependency" },
+  { source: "semiconductors", target: "apple", weight: 0.75, label: "iPhone & Mac chips" },
+  { source: "semiconductors", target: "smartphone_production", weight: 0.7, label: "processor supply" },
+  { source: "semiconductors", target: "ev_production", weight: 0.5, label: "vehicle computers" },
+  { source: "semiconductors", target: "defense_readiness", weight: 0.4, label: "guided munitions" },
+  { source: "china", target: "rare_earths", weight: 0.8, label: "70% of processing" },
+  { source: "rare_earths", target: "semiconductors", weight: 0.45, label: "component materials" },
+  { source: "rare_earths", target: "ev_production", weight: 0.55, label: "motor magnets" },
+  { source: "neon_gas", target: "semiconductors", weight: 0.5, label: "lithography gas" },
+  { source: "ukraine", target: "neon_gas", weight: 0.6, label: "major neon producer" },
+  { source: "russia", target: "natural_gas", weight: 0.55, label: "pipeline gas to EU" },
+  { source: "russia", target: "oil_supply", weight: 0.4, label: "major crude exporter" },
+  { source: "saudi_arabia", target: "oil_supply", weight: 0.5, label: "swing producer" },
+  { source: "nord_stream", target: "natural_gas", weight: 0.45, label: "direct pipeline" },
+  { source: "natural_gas", target: "eu_energy_prices", weight: 0.7, label: "heating & power" },
+  { source: "oil_supply", target: "eu_energy_prices", weight: 0.5, label: "transport fuel" },
+  { source: "eu_energy_prices", target: "germany", weight: 0.6, label: "industrial costs" },
+  { source: "suez_canal", target: "oil_supply", weight: 0.3, label: "tanker transit" },
+  { source: "ukraine", target: "wheat", weight: 0.5, label: "breadbasket of Europe" },
+  { source: "black_sea_route", target: "wheat", weight: 0.65, label: "grain corridor" },
+  { source: "wheat", target: "food_prices", weight: 0.6, label: "staple grain" },
+  { source: "eu_energy_prices", target: "food_prices", weight: 0.3, label: "fertilizer costs" },
+  { source: "australia", target: "lithium", weight: 0.55, label: "largest miner" },
+  { source: "lithium", target: "ev_production", weight: 0.65, label: "battery cathode" },
+  { source: "judge", target: "yankees_offense", weight: 0.75, label: "25%+ of HR production" },
+  { source: "yankees_offense", target: "yankees_record", weight: 0.65, label: "runs drive wins" },
+  { source: "yankees_record", target: "al_pennant", weight: 0.6, label: "playoff seeding" },
+  { source: "al_pennant", target: "world_series", weight: 0.5, label: "pennant winner" },
+  { source: "ohtani", target: "dodgers_rotation", weight: 0.7, label: "ace + DH" },
+  { source: "dodgers_rotation", target: "dodgers_record", weight: 0.6, label: "pitching wins" },
+  { source: "dodgers_record", target: "world_series", weight: 0.55, label: "NL contender" },
+  { source: "mahomes", target: "chiefs_offense", weight: 0.8, label: "franchise QB" },
+  { source: "chiefs_offense", target: "chiefs_record", weight: 0.7, label: "offensive production" },
+  { source: "china", target: "taiwan_strait", weight: 0.5, label: "territorial claims" },
+];
+
+const SCENARIOS = [
+  { trigger: ["titanium", "kazakhstan"], shocks: [{ nodeId: "kazakhstan", magnitude: -0.20, label: "KAZAKHSTAN TITANIUM OUTPUT -20%" }] },
+  { trigger: ["belarus", "rail"], shocks: [{ nodeId: "belarus_rail", magnitude: -0.85, label: "BELARUS RAIL CORRIDOR CLOSED" }] },
+  { trigger: ["taiwan", "strait", "blockade"], shocks: [{ nodeId: "taiwan_strait", magnitude: -0.90, label: "TAIWAN STRAIT BLOCKADED" }] },
+  { trigger: ["china", "rare earth"], shocks: [{ nodeId: "china", magnitude: -0.50, label: "CHINA RARE EARTH EXPORT BAN" }] },
+  { trigger: ["judge", "ankle", "sprain", "injury", "injured"], shocks: [{ nodeId: "judge", magnitude: -0.70, label: "JUDGE OUT 6-8 WEEKS // HIGH ANKLE SPRAIN" }] },
+  { trigger: ["ohtani", "ucl", "tear", "injury"], shocks: [{ nodeId: "ohtani", magnitude: -0.80, label: "OHTANI UCL TEAR // OUT FOR SEASON" }] },
+  { trigger: ["mahomes", "acl", "injury", "knee"], shocks: [{ nodeId: "mahomes", magnitude: -0.85, label: "MAHOMES ACL // OUT FOR SEASON" }] },
+  { trigger: ["russia", "gas", "europe", "cut"], shocks: [{ nodeId: "natural_gas", magnitude: -0.55, label: "RUSSIAN GAS CUT TO EU" }] },
+  { trigger: ["suez", "canal", "blocked"], shocks: [{ nodeId: "suez_canal", magnitude: -0.90, label: "SUEZ CANAL BLOCKAGE" }] },
+  { trigger: ["saudi", "oil", "cut", "production"], shocks: [{ nodeId: "saudi_arabia", magnitude: -0.30, label: "SAUDI PRODUCTION CUT 2M BBL/DAY" }] },
+  { trigger: ["ukraine", "wheat", "grain", "halt"], shocks: [{ nodeId: "black_sea_route", magnitude: -0.80, label: "BLACK SEA GRAIN CORRIDOR CLOSED" }] },
+  { trigger: ["australia", "lithium", "mine"], shocks: [{ nodeId: "australia", magnitude: -0.40, label: "MAJOR LITHIUM MINE OFFLINE" }] },
+];
+
+// ── ENGINE ──
+
+// Backend URL — change when deploying to augur.saipien.net
+const AUGUR_API = window.AUGUR_API_URL || "https://augur.saipien.net";
+
+function propagateCascade(shocks) {
+  const impacts = new Map(), paths = new Map(), queue = [];
+  for (const s of shocks) { impacts.set(s.nodeId, s.magnitude); paths.set(s.nodeId, [{ node: s.nodeId, impact: s.magnitude }]); queue.push(s.nodeId); }
+  const visited = new Set(); let it = 0;
+  while (queue.length > 0 && it < 200) {
+    const cur = queue.shift(); if (visited.has(cur)) continue; visited.add(cur); it++;
+    const ci = impacts.get(cur);
+    for (const e of EDGES.filter(x => x.source === cur)) {
+      const p = ci * e.weight; if (Math.abs(p) < 0.01) continue;
+      if (Math.abs(p) > Math.abs(impacts.get(e.target) || 0)) {
+        impacts.set(e.target, p); paths.set(e.target, [...(paths.get(cur)||[]), { node: e.target, impact: p, edge: e.label }]);
+        queue.push(e.target); visited.delete(e.target);
+      }
+    }
+  }
+  return { impacts, paths };
+}
+
+function matchScenario(q) {
+  const l = q.toLowerCase(); let best = null, bs = 0;
+  for (const s of SCENARIOS) { const sc = s.trigger.reduce((a,k) => a + (l.includes(k)?1:0), 0); if (sc > bs) { bs = sc; best = s; } }
+  if (bs >= 1) return best;
+  const nm = NODES.find(n => l.includes(n.label.toLowerCase()) || l.includes(n.id.replace(/_/g," ")));
+  return nm ? { shocks: [{ nodeId: nm.id, magnitude: -0.30, label: nm.label.toUpperCase() + " DISRUPTED" }] } : null;
+}
+
+// ── LLM QUERY PARSER (calls backend, falls back to local) ──
+
+async function parseQueryLLM(q) {
+  try {
+    const r = await fetch(AUGUR_API + "/augur/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q }),
+    });
+    if (!r.ok) throw new Error("API " + r.status);
+    const data = await r.json();
+    // Map backend response to frontend shock format
+    const shocks = data.shocks.map(s => {
+      // Find closest node in graph
+      const nodeId = s.node.toLowerCase().replace(/\s+/g, "_");
+      const node = NODES.find(n => n.id === nodeId || n.id === s.node);
+      return {
+        nodeId: node ? node.id : nodeId,
+        magnitude: s.magnitude,
+        label: (s.reasoning || s.node).toUpperCase(),
+      };
+    }).filter(s => NODES.some(n => n.id === s.nodeId)); // Only keep valid nodes
+    return {
+      shocks,
+      source: data.source,
+      explanation: data.explanation,
+      confidence: data.confidence,
+      llm: true,
+    };
+  } catch (e) {
+    console.log("[AUGUR] Backend unavailable, using local matching:", e.message);
+    return null; // Fallback to local
+  }
+}
+
+// ── GLITCH BAR COMPONENT ──
+
+function GlitchBars() {
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none", zIndex: 9990, overflow: "hidden" }}>
+      {[0,1,2].map(i => (
+        <div key={i} style={{
+          position: "absolute", left: 0, right: 0, height: Math.random() * 4 + 2,
+          background: "rgba(255,0,102," + (0.08 + Math.random() * 0.08) + ")",
+          animation: "glitchBar " + (6 + i * 3) + "s linear " + (i * 2) + "s infinite",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// ── GRAPH ──
+
+function GraphVis({ impacts, shocks, onNodeClick }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const svg = d3.select(ref.current); svg.selectAll("*").remove();
+    const w = ref.current.clientWidth, h = ref.current.clientHeight;
+    const g = svg.append("g");
+    svg.call(d3.zoom().scaleExtent([0.2, 5]).on("zoom", ev => g.attr("transform", ev.transform)));
+
+    const defs = svg.append("defs");
+    // Magenta arrow
+    defs.append("marker").attr("id", "arr").attr("viewBox", "0 -4 8 8")
+      .attr("refX", 22).attr("markerWidth", 5).attr("markerHeight", 5).attr("orient", "auto")
+      .append("path").attr("d", "M0,-3L8,0L0,3").attr("fill", "rgba(255,0,102,0.3)");
+    // Hot arrow
+    defs.append("marker").attr("id", "arr-hot").attr("viewBox", "0 -4 8 8")
+      .attr("refX", 22).attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+      .append("path").attr("d", "M0,-3L8,0L0,3").attr("fill", "#ff0066");
+
+    // Glow
+    const gl = defs.append("filter").attr("id", "gl").attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
+    gl.append("feGaussianBlur").attr("stdDeviation", "5").attr("result", "b");
+    gl.append("feFlood").attr("flood-color", "#ff0066").attr("flood-opacity", "0.6").attr("result", "c");
+    gl.append("feComposite").attr("in", "c").attr("in2", "b").attr("operator", "in").attr("result", "g");
+    const m = gl.append("feMerge"); m.append("feMergeNode").attr("in", "g"); m.append("feMergeNode").attr("in", "SourceGraphic");
+
+    // White glow for resting
+    const glw = defs.append("filter").attr("id", "glw").attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
+    glw.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "b");
+    glw.append("feFlood").attr("flood-color", "#ffffff").attr("flood-opacity", "0.15").attr("result", "c");
+    glw.append("feComposite").attr("in", "c").attr("in2", "b").attr("operator", "in").attr("result", "g");
+    const mw = glw.append("feMerge"); mw.append("feMergeNode").attr("in", "g"); mw.append("feMergeNode").attr("in", "SourceGraphic");
+
+    const sn = NODES.map(n => ({ ...n })), se = EDGES.map(e => ({ ...e }));
+    const sim = d3.forceSimulation(sn)
+      .force("link", d3.forceLink(se).id(d => d.id).distance(125).strength(0.35))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("collision", d3.forceCollide().radius(30));
+
+    // Edges — circuit traces
+    const link = g.append("g").selectAll("line").data(se).join("line")
+      .attr("stroke", d => {
+        if (!impacts) return "rgba(255,0,102,0.04)";
+        const ti = impacts.get(typeof d.target === "object" ? d.target.id : d.target);
+        const si = impacts.get(typeof d.source === "object" ? d.source.id : d.source);
+        if (si && ti) return Math.abs(ti) > 0.1 ? "#ff0066" : "rgba(255,255,255,0.08)";
+        return "rgba(255,0,102,0.03)";
+      })
+      .attr("stroke-width", d => {
+        if (!impacts) return 0.6;
+        const ti = impacts.get(typeof d.target === "object" ? d.target.id : d.target);
+        return ti ? Math.min(Math.abs(ti) * 6 + 1, 3) : 0.4;
+      })
+      .attr("marker-end", d => {
+        if (!impacts) return "url(#arr)";
+        const ti = impacts.get(typeof d.target === "object" ? d.target.id : d.target);
+        return (ti && Math.abs(ti) > 0.1) ? "url(#arr-hot)" : "url(#arr)";
+      })
+      .style("stroke-dasharray", d => {
+        if (!impacts) return "2 6";
+        const ti = impacts.get(typeof d.target === "object" ? d.target.id : d.target);
+        return (ti && Math.abs(ti) > 0.05) ? "none" : "2 6";
+      });
+
+    const node = g.append("g").selectAll("g").data(sn).join("g")
+      .style("cursor", "pointer")
+      .call(d3.drag()
+        .on("start", (ev, d) => { if (!ev.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on("drag", (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
+        .on("end", (ev, d) => { if (!ev.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+      )
+      .on("click", (ev, d) => onNodeClick && onNodeClick(d));
+
+    // Shock ring
+    node.append("circle")
+      .attr("r", d => {
+        if (shocks && shocks.find(s => s.nodeId === d.id)) return 20;
+        if (impacts && Math.abs(impacts.get(d.id) || 0) > 0.1) return 16;
+        return 0;
+      })
+      .attr("fill", "none")
+      .attr("stroke", "#ff0066")
+      .attr("stroke-width", d => (shocks && shocks.find(s => s.nodeId === d.id)) ? 1.5 : 0.8)
+      .attr("stroke-dasharray", "3 3")
+      .style("animation", "shockRing 1.5s ease infinite");
+
+    // Main dot — white at rest, magenta when hit
+    node.append("circle")
+      .attr("r", d => {
+        if (!impacts) return 6;
+        const imp = impacts.get(d.id);
+        return imp ? Math.min(Math.abs(imp) * 18 + 7, 16) : 5;
+      })
+      .attr("fill", d => {
+        if (shocks && shocks.find(s => s.nodeId === d.id)) return "#ff0066";
+        if (impacts && impacts.get(d.id)) return Math.abs(impacts.get(d.id)) > 0.1 ? "#ff0066" : "#ffffff";
+        return "#ffffff";
+      })
+      .attr("fill-opacity", d => (!impacts) ? 0.25 : (impacts.get(d.id) ? 0.9 : 0.08))
+      .style("filter", d => {
+        if (shocks && shocks.find(s => s.nodeId === d.id)) return "url(#gl)";
+        if (impacts && Math.abs(impacts.get(d.id) || 0) > 0.1) return "url(#gl)";
+        if (impacts && impacts.get(d.id)) return "url(#glw)";
+        return "none";
+      });
+
+    // Labels — white, uppercase
+    node.append("text")
+      .text(d => d.label.toUpperCase())
+      .attr("dy", d => (impacts && Math.abs(impacts.get(d.id)||0) > 0.1 ? 26 : 18) + "px")
+      .attr("text-anchor", "middle")
+      .attr("fill", d => {
+        if (!impacts) return "rgba(255,255,255,0.15)";
+        if (impacts.get(d.id)) return Math.abs(impacts.get(d.id)) > 0.1 ? "#ff0066" : "rgba(255,255,255,0.6)";
+        return "rgba(255,255,255,0.06)";
+      })
+      .attr("font-size", "7px")
+      .attr("font-family", "'Share Tech Mono', monospace")
+      .attr("letter-spacing", "2px")
+      .style("text-shadow", d => {
+        if (impacts && Math.abs(impacts.get(d.id)||0) > 0.1) return "0 0 10px rgba(255,0,102,0.6), 2px 0 0 rgba(255,0,102,0.2), -2px 0 0 rgba(0,255,255,0.1)";
+        return "none";
+      });
+
+    sim.on("tick", () => {
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+    });
+
+    setTimeout(() => svg.call(d3.zoom().scaleExtent([0.2,5]).on("zoom", ev => g.attr("transform", ev.transform)).transform, d3.zoomIdentity.scale(0.75).translate(w*0.16, h*0.16)), 800);
+    return () => sim.stop();
+  }, [impacts, shocks]);
+
+  return <svg ref={ref} style={{ width: "100%", height: "100%", background: "transparent" }} />;
+}
+
+// ── IMPACT BAR ──
+
+function ImpactBar({ label, impact, desc, delay }) {
+  const [w, setW] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setW(Math.min(Math.abs(impact)*100,100)), delay); return () => clearTimeout(t); }, [impact, delay]);
+  return (
+    <div style={{ marginBottom: 12, animation: "fadeIn 0.3s ease " + delay + "ms both" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+        <span className="data-text" style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, letterSpacing: "1.5px" }}>{label.toUpperCase()}</span>
+        <span className="vt" style={{ color: "#ff0066", fontSize: 16, textShadow: "0 0 8px rgba(255,0,102,0.5), 2px 0 0 rgba(255,0,102,0.15)" }}>
+          {impact > 0 ? "+" : ""}{(impact * 100).toFixed(1)}%
+        </span>
+      </div>
+      {desc && <div className="data-text" style={{ color: "rgba(255,255,255,0.15)", fontSize: 9, marginBottom: 3 }}>{desc}</div>}
+      <div style={{ height: 2, background: "rgba(255,255,255,0.04)", overflow: "hidden" }}>
+        <div style={{
+          height: "100%", width: w + "%", background: "#ff0066",
+          boxShadow: "0 0 12px rgba(255,0,102,0.5), 0 0 4px #ff0066",
+          transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// ── CASCADE PATH ──
+
+function CascadePath({ path }) {
+  if (!path || path.length < 2) return null;
+  return (
+    <div style={{ padding: "8px 10px", background: "rgba(255,0,102,0.04)", border: "1px solid rgba(255,0,102,0.1)", marginTop: 8 }}>
+      <div className="label" style={{ marginBottom: 6, fontSize: 8 }}>CASCADE PATH</div>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 3 }}>
+        {path.map((step, i) => {
+          const nd = NODES.find(n => n.id === step.node);
+          return (
+            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              {i > 0 && <span className="vt" style={{ color: "#ff0066", fontSize: 12 }}>{"\u25B8"}</span>}
+              <span className="data-text" style={{
+                background: i === 0 ? "rgba(255,0,102,0.15)" : "rgba(255,255,255,0.04)",
+                color: i === 0 ? "#ff0066" : "rgba(255,255,255,0.5)",
+                padding: "1px 5px", fontSize: 9,
+                border: "1px solid " + (i === 0 ? "rgba(255,0,102,0.3)" : "rgba(255,255,255,0.06)"),
+              }}>
+                {nd ? nd.label.toUpperCase() : step.node}
+                <span style={{ color: "#ff0066", marginLeft: 4 }}>{(step.impact * 100).toFixed(0)}%</span>
+              </span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN ──
+
+function Augur() {
+  const [query, setQuery] = useState("");
+  const [result, setResult] = useState(null);
+  const [selNode, setSelNode] = useState(null);
+  const [showHelp, setShowHelp] = useState(true);
+  const [phase, setPhase] = useState(0); // 0=boot, 1=glitch, 2=app
+  const [loading, setLoading] = useState(false);
+  const [llmSource, setLlmSource] = useState(null); // "mentor", "protege", "shadow-mentor", "local"
+
+  // BOOT SEQUENCE — HCF style
+  useEffect(() => {
+    setTimeout(() => setPhase(1), 2200);  // glitch transition
+    setTimeout(() => setPhase(2), 3200);  // app reveals
+  }, []);
+
+  const runQuery = useCallback(async (q) => {
+    const input = q || query;
+    setLoading(true); setShowHelp(false); setSelNode(null);
+
+    // Try LLM backend first
+    const llmResult = await parseQueryLLM(input);
+
+    if (llmResult && llmResult.shocks.length > 0) {
+      // LLM successfully parsed — run cascade with its shocks
+      const r = propagateCascade(llmResult.shocks);
+      setResult({ ...r, shocks: llmResult.shocks, explanation: llmResult.explanation, confidence: llmResult.confidence });
+      setLlmSource(llmResult.source || "llm");
+    } else {
+      // Fallback to local keyword matching
+      const sc = matchScenario(input);
+      if (!sc) { setResult({ error: true }); setLoading(false); return; }
+      const r = propagateCascade(sc.shocks);
+      setResult({ ...r, shocks: sc.shocks });
+      setLlmSource("local");
+    }
+    setLoading(false);
+  }, [query]);
+
+  const sorted = useMemo(() => {
+    if (!result || !result.impacts) return [];
+    const arr = [];
+    result.impacts.forEach((v, k) => { const n = NODES.find(x => x.id === k); if (n && !result.shocks.some(s => s.nodeId === k)) arr.push({ id: k, label: n.label, impact: v, desc: n.desc }); });
+    arr.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+    return arr;
+  }, [result]);
+
+  const examples = [
+    "If titanium from Kazakhstan drops 20%?",
+    "Belarus closes rail access",
+    "Judge gets a high ankle sprain",
+    "Taiwan Strait blockade",
+    "China restricts rare earth exports",
+    "Russia cuts gas to Europe",
+    "Ohtani tears UCL again",
+  ];
+
+  // ── BOOT SCREEN: solid magenta field + white text + glitch ──
+  if (phase === 0) {
+    return (
+      <div style={{ height: "100vh", background: "#cc0050", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+        {/* Horizontal glitch bars */}
+        <div style={{ position: "absolute", top: "20%", left: 0, right: 0, height: 3, background: "rgba(0,0,0,0.3)" }} />
+        <div style={{ position: "absolute", top: "45%", left: 0, right: 0, height: 2, background: "rgba(255,255,255,0.15)" }} />
+        <div style={{ position: "absolute", top: "72%", left: 0, right: 0, height: 4, background: "rgba(0,0,0,0.2)" }} />
+        {/* Small white square — HCF motif */}
+        <div style={{ position: "absolute", top: "50%", left: "calc(50% - 190px)", width: 12, height: 12, background: "#fff", transform: "translateY(-50%)" }} />
+        {/* Thin horizontal lines */}
+        <div style={{ position: "absolute", top: "50%", left: "calc(50% + 140px)", width: 80, height: 1, background: "rgba(255,255,255,0.5)", transform: "translateY(-50%)" }} />
+        <div style={{ position: "absolute", top: "calc(50% + 8px)", left: "calc(50% + 160px)", width: 40, height: 1, background: "rgba(255,255,255,0.3)" }} />
+        <div style={{ animation: "bootGlitch 3s linear infinite" }}>
+          <span className="vt" style={{
+            fontSize: 52, color: "#ffffff", letterSpacing: "10px",
+            textShadow: "3px 0 0 rgba(255,255,255,0.3), -2px 0 0 rgba(0,0,0,0.3)",
+          }}>AUGUR</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── GLITCH TRANSITION ──
+  if (phase === 1) {
+    return (
+      <div style={{ height: "100vh", background: "#0a0008", position: "relative", overflow: "hidden" }}>
+        {/* Rapid horizontal bands */}
+        {[...Array(12)].map((_, i) => (
+          <div key={i} style={{
+            position: "absolute", left: 0, right: 0,
+            top: (i * 8.3) + "%", height: Math.random() * 6 + 1,
+            background: "rgba(255,0,102," + (Math.random() * 0.3 + 0.05) + ")",
+            animation: "hScanRace " + (0.3 + Math.random() * 0.4) + "s linear infinite",
+            animationDelay: (Math.random() * 0.3) + "s",
+          }} />
+        ))}
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", animation: "glitchShift 0.15s linear infinite" }}>
+          <span className="vt" style={{ fontSize: 52, color: "#ff0066", letterSpacing: "10px", textShadow: "4px 0 0 rgba(0,255,255,0.3), -3px 0 0 rgba(255,0,102,0.5)" }}>
+            AUGUR
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── MAIN APP ──
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden", animation: "fadeIn 0.6s ease" }}>
+      <GlitchBars />
+
+      {/* HEADER */}
+      <div style={{ padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, borderBottom: "1px solid rgba(255,0,102,0.08)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 10, height: 10, background: "#ff0066", boxShadow: "0 0 8px rgba(255,0,102,0.5)" }} />
+          <span className="vt" style={{
+            fontSize: 26, color: "#ffffff", letterSpacing: "8px",
+            textShadow: "0 0 10px rgba(255,0,102,0.4), 2px 0 0 rgba(255,0,102,0.15), -1px 0 0 rgba(0,255,255,0.08)",
+          }}>AUGUR</span>
+          <div style={{ width: 40, height: 1, background: "rgba(255,0,102,0.2)" }} />
+          <span className="label" style={{ letterSpacing: "4px", fontSize: 8 }}>PROBABILITY CASCADE ENGINE</span>
+        </div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <span className="data-text" style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}>{NODES.length} NODES // {EDGES.length} EDGES</span>
+          <div style={{ width: 1, height: 12, background: "rgba(255,0,102,0.1)" }} />
+          <span className="label" style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", letterSpacing: "3px" }}>SAIPIEN</span>
+        </div>
+      </div>
+
+      {/* QUERY */}
+      <div style={{ padding: "8px 24px", borderBottom: "1px solid rgba(255,0,102,0.05)", flexShrink: 0 }}>
+        <form onSubmit={e => { e.preventDefault(); if (query.trim()) runQuery(query); }} style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1, position: "relative" }}>
+            <span className="vt" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#ff0066", fontSize: 16, textShadow: "0 0 6px rgba(255,0,102,0.5)" }}>&gt;</span>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="MODEL A SCENARIO..."
+              style={{ width: "100%", padding: "10px 14px 10px 30px", background: "rgba(255,0,102,0.02)", border: "1px solid rgba(255,0,102,0.08)", color: "#ffffff", fontSize: 14, outline: "none", fontFamily: "'VT323', monospace", letterSpacing: "1px" }}
+              onFocus={e => e.target.style.borderColor = "rgba(255,0,102,0.3)"}
+              onBlur={e => e.target.style.borderColor = "rgba(255,0,102,0.08)"}
+            />
+          </div>
+          <button type="submit" className="vt" style={{
+            padding: "10px 24px", background: "#ff0066", border: "none", color: "#ffffff", fontSize: 16, cursor: "pointer", letterSpacing: "4px",
+            boxShadow: "0 0 15px rgba(255,0,102,0.3)", transition: "all 0.2s",
+          }}
+            onMouseEnter={e => { e.target.style.background = "#ffffff"; e.target.style.color = "#ff0066"; e.target.style.boxShadow = "0 0 20px rgba(255,255,255,0.2)"; }}
+            onMouseLeave={e => { e.target.style.background = "#ff0066"; e.target.style.color = "#ffffff"; e.target.style.boxShadow = "0 0 15px rgba(255,0,102,0.3)"; }}
+          >PROPAGATE</button>
+        </form>
+      </div>
+
+      {/* MAIN */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ flex: 1, position: "relative" }}>
+          <GraphVis impacts={result ? result.impacts : null} shocks={result ? result.shocks : null} onNodeClick={n => setSelNode(n)} />
+
+          {showHelp && (
+            <div style={{
+              position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+              background: "rgba(10,0,8,0.97)", padding: 32, maxWidth: 500, width: "90%",
+              border: "1px solid rgba(255,0,102,0.1)", animation: "fadeIn 0.5s ease",
+            }}>
+              {/* Small white square motif */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <div style={{ width: 8, height: 8, background: "#ff0066", boxShadow: "0 0 6px rgba(255,0,102,0.5)" }} />
+                <span className="vt" style={{ fontSize: 22, color: "#ffffff", letterSpacing: "4px", textShadow: "0 0 8px rgba(255,0,102,0.3)" }}>SELECT SCENARIO</span>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,0,102,0.15)" }} />
+              </div>
+              <div className="data-text" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginBottom: 18, letterSpacing: "1px", lineHeight: 1.6 }}>
+                TYPE A SCENARIO OR SELECT BELOW. AUGUR WILL PROPAGATE THE SHOCK THROUGH THE DEPENDENCY GRAPH.
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {examples.map((eq, i) => (
+                  <button key={i} onClick={() => { setQuery(eq); runQuery(eq); }}
+                    style={{
+                      padding: "8px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.04)",
+                      color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", textAlign: "left",
+                      fontFamily: "'VT323', monospace", letterSpacing: "0.5px", transition: "all 0.15s",
+                    }}
+                    onMouseEnter={e => { e.target.style.borderColor = "rgba(255,0,102,0.3)"; e.target.style.color = "#ffffff"; e.target.style.background = "rgba(255,0,102,0.06)"; e.target.style.textShadow = "0 0 8px rgba(255,0,102,0.3)"; }}
+                    onMouseLeave={e => { e.target.style.borderColor = "rgba(255,255,255,0.04)"; e.target.style.color = "rgba(255,255,255,0.4)"; e.target.style.background = "transparent"; e.target.style.textShadow = "none"; }}
+                  >
+                    <span style={{ color: "#ff0066", marginRight: 8 }}>&gt;</span>{eq}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div className="vt" style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "rgba(255,0,102,0.08)", padding: "8px 20px", fontSize: 14, color: "#ff0066", border: "1px solid rgba(255,0,102,0.2)", letterSpacing: "2px", animation: "pulse 1s ease infinite" }}>
+              PARSING QUERY...
+            </div>
+          )}
+
+          {result && result.error && !loading && (
+            <div className="vt" style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "rgba(255,0,102,0.08)", padding: "8px 20px", fontSize: 14, color: "#ff0066", border: "1px solid rgba(255,0,102,0.2)", letterSpacing: "2px" }}>
+              NO MATCHING SCENARIO
+            </div>
+          )}
+
+          {selNode && (
+            <div style={{ position: "absolute", bottom: 24, left: 24, background: "rgba(10,0,8,0.96)", border: "1px solid rgba(255,0,102,0.1)", padding: 16, maxWidth: 340, animation: "fadeIn 0.2s ease" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="vt" style={{ fontSize: 18, color: "#ffffff", letterSpacing: "2px", textShadow: "0 0 6px rgba(255,0,102,0.3)" }}>{selNode.label.toUpperCase()}</span>
+                <button onClick={() => setSelNode(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", fontSize: 16, fontFamily: "monospace" }}>&times;</button>
+              </div>
+              <div className="data-text" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>{selNode.desc}</div>
+              <div className="label" style={{ marginTop: 6, fontSize: 8, color: "rgba(255,255,255,0.12)" }}>{selNode.domain} // {selNode.type}</div>
+              {result && result.impacts && result.impacts.get(selNode.id) && (
+                <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(255,0,102,0.06)", border: "1px solid rgba(255,0,102,0.15)" }}>
+                  <span className="data-text" style={{ color: "#ff0066", fontWeight: 700, textShadow: "0 0 8px rgba(255,0,102,0.4)" }}>
+                    IMPACT: {(result.impacts.get(selNode.id) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              )}
+              {result && result.paths && result.paths.get(selNode.id) && <CascadePath path={result.paths.get(selNode.id)} />}
+            </div>
+          )}
+        </div>
+
+        {/* IMPACT PANEL */}
+        {result && !result.error && (
+          <div style={{ width: 370, borderLeft: "1px solid rgba(255,0,102,0.08)", overflow: "auto", padding: 20, animation: "fadeIn 0.3s ease", flexShrink: 0, background: "var(--panel)" }}>
+            <div style={{ marginBottom: 20 }}>
+              <div className="label" style={{ marginBottom: 10, letterSpacing: "4px", fontSize: 9, color: "rgba(255,255,255,0.2)" }}>SHOCK EVENT</div>
+              {result.shocks.map((s, i) => (
+                <div key={i} style={{ padding: "14px", background: "rgba(255,0,102,0.06)", border: "1px solid rgba(255,0,102,0.15)", marginBottom: 6 }}>
+                  <div className="data-text" style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, letterSpacing: "1px" }}>{s.label}</div>
+                  <div className="vt" style={{
+                    color: "#ff0066", fontSize: 34, marginTop: 4,
+                    textShadow: "0 0 15px rgba(255,0,102,0.5), 0 0 30px rgba(255,0,102,0.3), 3px 0 0 rgba(255,0,102,0.15)",
+                  }}>
+                    {(s.magnitude * 100).toFixed(0)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <div className="label" style={{ letterSpacing: "3px", fontSize: 9 }}>CASCADING IMPACTS</div>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,0,102,0.08)" }} />
+              <span className="data-text" style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>{sorted.length}</span>
+            </div>
+
+            {sorted.map((item, i) => (
+              <div key={item.id} style={{ cursor: "pointer", padding: "2px 4px", transition: "background 0.15s" }}
+                onClick={() => setSelNode(NODES.find(n => n.id === item.id))}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,0,102,0.03)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <ImpactBar label={item.label} impact={item.impact} desc={item.desc} delay={i * 50} />
+              </div>
+            ))}
+
+            <div style={{ marginTop: 20, padding: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+              <div className="label" style={{ marginBottom: 8, letterSpacing: "3px", fontSize: 9 }}>ANALYSIS</div>
+              <div className="data-text" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", lineHeight: 1.7 }}>
+                {result.explanation && (
+                  <div style={{ marginBottom: 8, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
+                    {result.explanation}
+                  </div>
+                )}
+                {sorted.length > 0 && (
+                  <span>
+                    PRIMARY TARGET: <span style={{ color: "#ff0066", textShadow: "0 0 6px rgba(255,0,102,0.3)" }}>{sorted[0].label.toUpperCase()}</span> AT <span style={{ color: "#ff0066" }}>{(sorted[0].impact * 100).toFixed(1)}%</span>.
+                    {sorted.filter(s => Math.abs(s.impact) > 0.1).length > 1 && (" " + sorted.filter(s => Math.abs(s.impact) > 0.1).length + " ENTITIES >10% DISRUPTION.")}
+                    {" "}SELECT NODE FOR CASCADE PATH.
+                  </span>
+                )}
+                {result.confidence && (
+                  <div style={{ marginTop: 8 }}>
+                    <span className="label" style={{ fontSize: 7 }}>CONFIDENCE</span>
+                    <span style={{ color: "#ff0066", marginLeft: 6 }}>{(result.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* BOTTOM */}
+      <div style={{ padding: "5px 24px", borderTop: "1px solid rgba(255,0,102,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div style={{ width: 4, height: 4, background: "#ff0066", boxShadow: "0 0 4px #ff0066", animation: "pulse 2s ease infinite" }} />
+          <span className="label" style={{ fontSize: 7, color: "rgba(255,255,255,0.2)" }}>CASCADE ENGINE ONLINE</span>
+          <span style={{ color: "rgba(255,255,255,0.06)", fontSize: 8 }}>|</span>
+          <span className="label" style={{ fontSize: 7, color: "rgba(255,255,255,0.12)" }}>BAYESIAN PROPAGATION</span>
+          {llmSource && (
+            <>
+              <span style={{ color: "rgba(255,255,255,0.06)", fontSize: 8 }}>|</span>
+              <span className="label" style={{
+                fontSize: 7,
+                color: llmSource === "local" ? "rgba(255,255,255,0.12)" : "#ff0066",
+                textShadow: llmSource !== "local" ? "0 0 4px rgba(255,0,102,0.3)" : "none",
+              }}>
+                {llmSource === "shadow-mentor" ? "MENTOR // SHADOW" : llmSource === "protege" ? "PROTEGE // INDEPENDENT" : llmSource === "mentor" ? "MENTOR // DIRECT" : llmSource === "mentor-fallback" ? "MENTOR // FALLBACK" : "LOCAL // OFFLINE"}
+              </span>
+            </>
+          )}
+        </div>
+        <span className="vt" style={{ fontSize: 12, color: "rgba(255,255,255,0.08)", letterSpacing: "3px" }}>SAIPIEN.NET</span>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Augur />);
+</script>
+</body>
+</html>
