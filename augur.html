@@ -599,11 +599,34 @@ function Augur() {
   const [phase, setPhase] = useState(0); // 0=boot, 1=glitch, 2=app
   const [loading, setLoading] = useState(false);
   const [llmSource, setLlmSource] = useState(null); // "mentor", "protege", "shadow-mentor", "local"
+  const [keyStatus, setKeyStatus] = useState(null); // { mentor: "set"|"missing", protege: "set"|"missing", mentor_model: "..." }
+  const [backendStatus, setBackendStatus] = useState("offline"); // "offline", "checking", "waking", "live"
 
   // BOOT SEQUENCE — HCF style
   useEffect(() => {
     setTimeout(() => setPhase(1), 2200);  // glitch transition
     setTimeout(() => setPhase(2), 3200);  // app reveals
+  }, []);
+
+  // Health check — polls for backend + key status
+  useEffect(() => {
+    let timer = null;
+    const check = async () => {
+      setBackendStatus(prev => prev === "offline" ? "checking" : prev);
+      try {
+        const r = await fetch(AUGUR_API + "/health", { signal: AbortSignal.timeout(70000) });
+        const data = await r.json();
+        setBackendStatus("live");
+        if (data.keys) setKeyStatus(data.keys);
+      } catch (e) {
+        if (backendStatus === "checking") setBackendStatus("waking");
+        timer = setTimeout(check, backendStatus === "live" ? 30000 : 5000);
+      }
+    };
+    check();
+    // Re-check every 30s when live
+    const interval = setInterval(() => { if (backendStatus === "live") check(); }, 30000);
+    return () => { clearTimeout(timer); clearInterval(interval); };
   }, []);
 
   const runQuery = useCallback(async (q) => {
@@ -885,6 +908,21 @@ function Augur() {
                 {llmSource === "shadow-mentor" ? "MENTOR // SHADOW" : llmSource === "protege" ? "PROTEGE // INDEPENDENT" : llmSource === "mentor" ? "MENTOR // DIRECT" : llmSource === "mentor-fallback" ? "MENTOR // FALLBACK" : "LOCAL // OFFLINE"}
               </span>
             </>
+          )}
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>|</span>
+          {backendStatus !== "live" ? (
+            <span className="label" style={{ fontSize: 9, color: backendStatus === "offline" ? "rgba(255,255,255,0.4)" : backendStatus === "waking" ? "#ff0066" : "rgba(255,255,255,0.5)", animation: backendStatus === "waking" ? "pulse 1.5s ease infinite" : backendStatus === "checking" ? "pulse 2s ease infinite" : "none" }}>
+              {backendStatus === "offline" ? "○ BACKEND OFFLINE" : backendStatus === "checking" ? "◌ CHECKING..." : "◐ WAKING..."}
+            </span>
+          ) : (
+            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span className="label" style={{ fontSize: 9, color: keyStatus?.mentor === "set" ? "#00ff66" : "#ff4444", textShadow: keyStatus?.mentor === "set" ? "0 0 4px rgba(0,255,100,0.3)" : "0 0 4px rgba(255,0,0,0.3)" }}>
+                MENTOR {keyStatus?.mentor === "set" ? "●" : "✕"}
+              </span>
+              <span className="label" style={{ fontSize: 9, color: keyStatus?.protege === "set" ? "#00ff66" : "#ff4444", textShadow: keyStatus?.protege === "set" ? "0 0 4px rgba(0,255,100,0.3)" : "0 0 4px rgba(255,0,0,0.3)" }}>
+                PROTEGE {keyStatus?.protege === "set" ? "●" : "✕"}
+              </span>
+            </span>
           )}
         </div>
         <span className="vt" style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", letterSpacing: "3px" }}>SAIPIEN.NET</span>
