@@ -786,7 +786,11 @@ function switchView(v){
 
 // ── MAP ──
 function initMap(){
-  leafletMap=L.map('map',{center:[36.88,-76.10],zoom:11,zoomControl:true,attributionControl:false});
+  // Use stored location as initial center — no snap-back on refresh
+  const _iLoc=(window.getCurrentLocation?window.getCurrentLocation():'norfolk');
+  const _iLocs=window.mica_locations||{norfolk:{lat:36.88,lon:-76.10,zoom:11},keywest:{lat:24.55,lon:-81.78,zoom:11}};
+  const _iStart=_iLocs[_iLoc]||_iLocs.norfolk;
+  leafletMap=L.map('map',{center:[_iStart.lat,_iStart.lon],zoom:_iStart.zoom,zoomControl:true,attributionControl:false});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(leafletMap);
   ['installations','commands','contracts','heatmap','expirations','cog','primes','subs','dominance','workforce','hiring'].forEach(k=>layerGroups[k]=L.layerGroup());
   buildMapLayers();
@@ -1575,14 +1579,6 @@ function init(){
   renderCompanies();
   renderSignals();
   renderBrief();
-  // Restore stored location on refresh
-  const _storedLoc=window.getCurrentLocation?window.getCurrentLocation():'norfolk';
-  const _storedName=window.getCurrentLocationName?window.getCurrentLocationName():'Norfolk, VA';
-  const _locs=window.mica_locations||{};
-  const _locData=_locs[_storedLoc];
-  if(_locData&&window.leafletMap){
-    window.leafletMap.setView([_locData.lat,_locData.lon],_locData.zoom);
-  }
   // Build location selector
   _buildLocSelector();
   // Update AOI footer
