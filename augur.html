@@ -244,6 +244,17 @@ const NODES = [
   { id: "chiefs_record", label: "Chiefs Win-Loss Record", type: "index", domain: "sports", desc: "Season record projection" },
   { id: "al_pennant", label: "AL Pennant Race", type: "event", domain: "sports", desc: "American League championship odds" },
   { id: "world_series", label: "World Series Odds", type: "event", domain: "sports", desc: "Championship probability" },
+  // ── POLITICAL / ECONOMIC DOMAIN ──
+  { id: "iran", label: "Iran", type: "country", domain: "political", desc: "Oil producer, Strait of Hormuz, regional power" },
+  { id: "strait_of_hormuz", label: "Strait of Hormuz", type: "route", domain: "infrastructure", desc: "20% of global oil transit" },
+  { id: "us_gdp_growth", label: "US GDP Growth", type: "index", domain: "political", desc: "Quarterly real GDP growth rate" },
+  { id: "inflation_rate", label: "US Inflation Rate", type: "index", domain: "political", desc: "CPI year-over-year change" },
+  { id: "unemployment_rate", label: "US Unemployment", type: "index", domain: "political", desc: "Bureau of Labor Statistics U-3 rate" },
+  { id: "consumer_confidence", label: "Consumer Confidence", type: "index", domain: "political", desc: "Michigan/Conference Board sentiment index" },
+  { id: "presidential_approval", label: "Presidential Approval", type: "index", domain: "political", desc: "Gallup/538 aggregate approval rating" },
+  { id: "us_defense_spending", label: "US Defense Spending", type: "index", domain: "political", desc: "Federal defense budget outlays" },
+  { id: "us_midterm_2026", label: "2026 Midterm Elections", type: "event", domain: "political", desc: "November 2026 congressional elections" },
+  { id: "gop_house_majority", label: "GOP House Majority", type: "event", domain: "political", desc: "Republican control of US House" },
 ];
 
 const EDGES = [
@@ -295,6 +306,28 @@ const EDGES = [
   { source: "mahomes", target: "chiefs_offense", weight: 0.8, label: "franchise QB" },
   { source: "chiefs_offense", target: "chiefs_record", weight: 0.7, label: "offensive production" },
   { source: "china", target: "taiwan_strait", weight: 0.5, label: "territorial claims" },
+  // ── POLITICAL / ECONOMIC EDGES ──
+  { source: "iran", target: "strait_of_hormuz", weight: 0.85, label: "controls strait access" },
+  { source: "iran", target: "oil_supply", weight: 0.5, label: "4th largest OPEC producer" },
+  { source: "strait_of_hormuz", target: "oil_supply", weight: 0.7, label: "20% of global oil transits" },
+  { source: "iran", target: "us_defense_spending", weight: 0.4, label: "conflict drives military budget" },
+  { source: "iran", target: "presidential_approval", weight: 0.3, label: "foreign policy rally effect" },
+  { source: "oil_supply", target: "inflation_rate", weight: 0.5, label: "energy ~7% of CPI" },
+  { source: "food_prices", target: "inflation_rate", weight: 0.4, label: "food ~14% of CPI" },
+  { source: "us_gdp_growth", target: "unemployment_rate", weight: 0.45, label: "Okun's law" },
+  { source: "us_gdp_growth", target: "consumer_confidence", weight: 0.5, label: "growth lifts sentiment" },
+  { source: "unemployment_rate", target: "consumer_confidence", weight: 0.5, label: "jobs #1 consumer concern" },
+  { source: "inflation_rate", target: "consumer_confidence", weight: 0.55, label: "inflation erodes sentiment" },
+  { source: "us_defense_spending", target: "us_gdp_growth", weight: 0.2, label: "fiscal stimulus" },
+  { source: "consumer_confidence", target: "presidential_approval", weight: 0.5, label: "economic sentiment → approval" },
+  { source: "us_gdp_growth", target: "presidential_approval", weight: 0.4, label: "Hibbs model" },
+  { source: "defense_readiness", target: "us_defense_spending", weight: 0.35, label: "readiness gaps → budget" },
+  { source: "presidential_approval", target: "us_midterm_2026", weight: 0.7, label: "strongest midterm predictor" },
+  { source: "us_gdp_growth", target: "us_midterm_2026", weight: 0.45, label: "economic voting" },
+  { source: "consumer_confidence", target: "us_midterm_2026", weight: 0.4, label: "sentiment-based voting" },
+  { source: "us_midterm_2026", target: "gop_house_majority", weight: 0.9, label: "election determines majority" },
+  { source: "usa", target: "us_defense_spending", weight: 0.3, label: "geopolitical posture → budget" },
+  { source: "saudi_arabia", target: "iran", weight: 0.35, label: "regional rival" },
 ];
 
 const SCENARIOS = [
