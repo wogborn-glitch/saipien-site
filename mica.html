@@ -241,6 +241,34 @@ tr:hover{background:rgba(14,240,232,0.03);}
 .loc-button:hover{background:rgba(232,115,30,0.25);border-color:#e8731e;box-shadow:0 0 15px rgba(232,115,30,0.3);}
 .loc-button.active{background:#e8731e;color:#080c12;box-shadow:0 0 20px rgba(232,115,30,0.5);}
 .loc-info{font-family:'Rajdhani',sans-serif;font-size:12px;color:#5a7080;margin-top:20px;line-height:1.6;}
+
+/* ── Location / Command Selector ─────────────────────────── */
+.loc-cmd-bar{display:flex;align-items:center;gap:6px;margin-right:10px;}
+.mica-select{
+  appearance:none;-webkit-appearance:none;
+  background:rgba(0,232,200,0.06);
+  border:1px solid rgba(0,232,200,0.25);
+  color:#00e8c8;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.5px;
+  padding:4px 22px 4px 8px;
+  border-radius:3px;
+  cursor:pointer;
+  outline:none;
+  min-width:130px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300e8c8' opacity='0.7'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 7px center;
+  transition:border-color 0.15s,background 0.15s;
+}
+.mica-select:hover{border-color:rgba(0,232,200,0.5);background-color:rgba(0,232,200,0.1);}
+.mica-select option{background:#0d1f2d;color:#c8d6e0;}
+.mica-select.cmd-select{min-width:150px;border-color:rgba(139,92,246,0.3);color:#a78bfa;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a78bfa' opacity='0.7'/%3E%3C/svg%3E");
+}
+.mica-select.cmd-select:hover{border-color:rgba(139,92,246,0.5);background-color:rgba(139,92,246,0.08);}
+.sel-divider{width:1px;height:18px;background:rgba(255,255,255,0.08);}
 </style>
 </head>
 <body>
@@ -290,7 +318,7 @@ tr:hover{background:rgba(14,240,232,0.03);}
     <input id="searchInput" type="text" placeholder="Search company, command, contract, tech..."/>
     <div id="searchResults" class="search-results"></div>
   </div>
-  <div class="topstats">
+  <div class="loc-cmd-bar"><select id="loc-select" class="mica-select" onchange="onLocSelectChange(this.value)" title="Select Location"></select><div class="sel-divider"></div><select id="cmd-select" class="mica-select cmd-select" onchange="onCmdSelectChange(this.value)" title="Filter by Command"></select></div><div class="topstats">
     <div class="ts"><div class="ts-val" id="s-contracts">0</div><div class="ts-lbl">Contracts</div></div>
     <div class="ts"><div class="ts-val" id="s-value">$0</div><div class="ts-lbl">Value</div></div>
     <div class="ts"><div class="ts-val" id="s-companies">0</div><div class="ts-lbl">Companies</div></div>
@@ -366,8 +394,8 @@ tr:hover{background:rgba(14,240,232,0.03);}
   <div class="bi" id="bi-edges">0 EDGES</div>
   <div class="bi" id="bi-corr">0 CORRELATIONS</div>
   <div class="bi-spacer"></div>
-  <div class="bi" style="color:var(--text)">HAMPTON ROADS AOI</div>
-  <div class="bi-time" id="clock">00:00:00</div>
+  <div class="bi" id="bi-aoi" style="color:var(--text)">LOADING...</div>
+  <div class="bi-time" id="clock" style="font-variant-numeric:tabular-nums;font-feature-settings:&quot;tnum&quot;;letter-spacing:0.08em;min-width:96px;text-align:right;display:inline-block;">00:00:00</div>
 </div>
 </div>
 
@@ -1445,7 +1473,8 @@ sInput.addEventListener('blur',()=>{setTimeout(()=>sResults.classList.remove('sh
 
 // ── TABLES ──
 function renderContracts(){
-  document.getElementById('t-contracts').innerHTML=[...DATA.contracts].sort((a,b)=>(b.award_amount||0)-(a.award_amount||0)).map(c=>{
+  const _LD=getLocData();const _cons=window._selectedCmd?_LD.contracts.filter(c=>c.command_id===window._selectedCmd):_LD.contracts;
+  document.getElementById('t-contracts').innerHTML=[..._cons].sort((a,b)=>(b.award_amount||0)-(a.award_amount||0)).map(c=>{
     const sb=c.data_source?.includes('press')?'badge-press':c.data_source?.includes('api')?'badge-api':'badge-est';
     const sl=c.data_source?.includes('press')?'PRESS':c.data_source?.includes('api')?'API':'EST';
     const prime=LU.comp[c.prime_contractor_id];
@@ -1454,8 +1483,9 @@ function renderContracts(){
 }
 
 function renderCompanies(){
-  const cd=DATA.companies.map(c=>{
-    const pv=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);
+  const _LD2=getLocData();const _cos=window._selectedCmd?_LD2.companies.filter(c=>_LD2.contracts.some(ct=>ct.prime_contractor_id===c.id&&ct.command_id===window._selectedCmd)):_LD2.companies;
+  const cd=_cos.map(c=>{
+    const pv=_LD2.contracts.filter(ct=>ct.prime_contractor_id===c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);
     const sv=DATA.subcontracts.filter(s=>s.subcontractor_id===c.id).reduce((s2,s3)=>s2+(s3.sub_award_amount||s3.subaward_amount||0),0);
     const sc=DATA.workforce_signals.filter(w=>w.company_id===c.id).length;
     const revSubs=largePrimesSubbingUnder(c.id);
@@ -1467,7 +1497,10 @@ function renderCompanies(){
 }
 
 function renderSignals(){
-  document.getElementById('t-signals').innerHTML=DATA.workforce_signals.map(ws=>{
+  const _LD3=getLocData();const _sigs=window._selectedCmd?_LD3.workforce_signals.filter(s=>{
+    const co=LU.comp[s.company_id];return co&&_LD3.contracts.some(ct=>ct.prime_contractor_id===co.id&&ct.command_id===window._selectedCmd);
+  }):_LD3.workforce_signals;
+  document.getElementById('t-signals').innerHTML=_sigs.map(ws=>{
     const cr=DATA.correlations.find(c=>c.workforce_signal_id===ws.id);
     const cc=cr?LU.con[cr.contract_id]:null;
     const conf=cr?cr.confidence_score:0;
@@ -1484,10 +1517,10 @@ function buildTicker(){
 }
 
 function renderBrief(){
-  const cr=DATA.companies.map(c=>{const pv=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);const sv=DATA.subcontracts.filter(s=>s.subcontractor_id===c.id).reduce((s2,s3)=>s2+(s3.sub_award_amount||s3.subaward_amount||0),0);const sc=DATA.workforce_signals.filter(w=>w.company_id===c.id).length;const pc=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).length;return{...c,pv,sv,tv:pv+sv,sc,pc};}).filter(c=>c.tv>0).sort((a,b)=>b.tv-a.tv);
+  const _LDB=getLocData();const cr=_LDB.companies.map(c=>{const pv=_LDB.contracts.filter(ct=>ct.prime_contractor_id===c.id).reduce((s,ct)=>s+(ct.award_amount||0),0);const sv=DATA.subcontracts.filter(s=>s.subcontractor_id===c.id).reduce((s2,s3)=>s2+(s3.sub_award_amount||s3.subaward_amount||0),0);const sc=DATA.workforce_signals.filter(w=>w.company_id===c.id).length;const pc=DATA.contracts.filter(ct=>ct.prime_contractor_id===c.id).length;return{...c,pv,sv,tv:pv+sv,sc,pc};}).filter(c=>c.tv>0).sort((a,b)=>b.tv-a.tv);
   const mx=cr[0]?.tv||1;
-  const exp=DATA.contracts.filter(c=>c.end_date&&monthsUntil(c.end_date)<=24).sort((a,b)=>(a.end_date||'').localeCompare(b.end_date||''));
-  const cmdS=DATA.commands.map(cmd=>{const cts=contractsByCmd(cmd.id);return{...cmd,tv:cts.reduce((s,c)=>s+(c.award_amount||0),0),cc:cts.length,primes:cts.map(c=>CN(c.prime_contractor_id)).join(', ')};}).filter(c=>c.cc>0).sort((a,b)=>b.tv-a.tv);
+  const exp=_LDB.contracts.filter(c=>c.end_date&&monthsUntil(c.end_date)<=24).sort((a,b)=>(a.end_date||'').localeCompare(b.end_date||''));
+  const cmdS=_LDB.commands.map(cmd=>{const cts=contractsByCmd(cmd.id);return{...cmd,tv:cts.reduce((s,c)=>s+(c.award_amount||0),0),cc:cts.length,primes:cts.map(c=>CN(c.prime_contractor_id)).join(', ')};}).filter(c=>c.cc>0).sort((a,b)=>b.tv-a.tv);
   const hbc={};getLocData().workforce_signals.forEach(ws=>{if(!hbc[ws.company_id])hbc[ws.company_id]=[];hbc[ws.company_id].push(ws);});
   const hr=Object.entries(hbc).sort((a,b)=>b[1].length-a[1].length);
 
@@ -1542,6 +1575,19 @@ function init(){
   renderCompanies();
   renderSignals();
   renderBrief();
+  // Restore stored location on refresh
+  const _storedLoc=window.getCurrentLocation?window.getCurrentLocation():'norfolk';
+  const _storedName=window.getCurrentLocationName?window.getCurrentLocationName():'Norfolk, VA';
+  const _locs=window.mica_locations||{};
+  const _locData=_locs[_storedLoc];
+  if(_locData&&window.leafletMap){
+    window.leafletMap.setView([_locData.lat,_locData.lon],_locData.zoom);
+  }
+  // Build location selector
+  _buildLocSelector();
+  // Update AOI footer
+  _updateAOI();
+
 }
 
 // Global event delegation for popup links (Leaflet popups don't support inline onclick reliably)
@@ -1574,7 +1620,22 @@ window.closeNetgraph=closeNetgraph;
 window.switchView=switchView;
 window.exportBrief=exportBrief;
 
-setInterval(()=>{document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8);},1000);
+
+// ── Clock: locale-aware, timezone-labeled, tabular digits ────────────────
+(function(){
+  function updateClock(){
+    const el=document.getElementById('clock');
+    if(!el)return;
+    const now=new Date();
+    const timeStr=now.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+    // Get short TZ abbreviation
+    const tzStr=now.toLocaleTimeString(undefined,{timeZoneName:'short'}).split(' ').pop()||'';
+    el.textContent=timeStr+(tzStr?' '+tzStr:'');
+  }
+  updateClock();
+  setInterval(updateClock,1000);
+})();
+
 init();
 
 // ── Phase 4: panel toggle ────────────────────────────────────────────────
@@ -1610,6 +1671,109 @@ window.setLocation=function(loc,name){
   if(gpanel&&gpanel.style.display==='flex')buildGapPanel();
 };
 // ── End Phase 4 panel toggle ─────────────────────────────────────────────
+
+
+// ── Location / Command selector logic ────────────────────────────────────
+window._selectedCmd = null;
+
+function _buildLocSelector(){
+  const sel=document.getElementById('loc-select');
+  if(!sel)return;
+  const locs=window.mica_locations||{norfolk:{name:'Norfolk, VA'},keywest:{name:'Key West, FL'}};
+  const cur=window.getCurrentLocation();
+  sel.innerHTML='';
+  // "All" option
+  const allOpt=document.createElement('option');
+  allOpt.value=''; allOpt.textContent='ALL LOCATIONS';
+  sel.appendChild(allOpt);
+  Object.entries(locs).forEach(([key,loc])=>{
+    const opt=document.createElement('option');
+    opt.value=key;
+    opt.textContent=loc.name.toUpperCase();
+    if(key===cur)opt.selected=true;
+    sel.appendChild(opt);
+  });
+  _buildCmdSelector();
+}
+
+function _buildCmdSelector(){
+  const sel=document.getElementById('cmd-select');
+  if(!sel)return;
+  const LD=getLocData();
+  sel.innerHTML='';
+  const allOpt=document.createElement('option');
+  allOpt.value=''; allOpt.textContent='ALL COMMANDS';
+  sel.appendChild(allOpt);
+  // Sort commands by name
+  const cmds=[...LD.commands].sort((a,b)=>(a.abbreviation||a.name).localeCompare(b.abbreviation||b.name));
+  cmds.forEach(cmd=>{
+    const opt=document.createElement('option');
+    opt.value=cmd.id;
+    opt.textContent=(cmd.abbreviation||cmd.name).toUpperCase();
+    if(cmd.id===window._selectedCmd)opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+function _updateAOI(){
+  const el=document.getElementById('bi-aoi');
+  if(!el)return;
+  const locName=window.getCurrentLocationName?window.getCurrentLocationName():'';
+  const cmdSel=window._selectedCmd;
+  const cmdName=cmdSel?(LU.cmd[cmdSel]?.abbreviation||LU.cmd[cmdSel]?.name||''):'';
+  if(cmdName) el.textContent=cmdName+' AOI';
+  else if(locName) el.textContent=locName.toUpperCase()+' AOI';
+  else el.textContent='MULTI-LOCATION AOI';
+}
+
+function onLocSelectChange(locKey){
+  if(!locKey){
+    // "All locations" — not supported natively yet; fallback to first location
+    // In future: show merged view. For now reset to stored.
+    return;
+  }
+  const locs=window.mica_locations||{};
+  const loc=locs[locKey];
+  if(!loc)return;
+  // Update sessionStorage
+  sessionStorage.setItem('mica-location',locKey);
+  sessionStorage.setItem('mica-location-name',loc.name);
+  // Fly map
+  if(window.leafletMap)window.leafletMap.flyTo([loc.lat,loc.lon],loc.zoom,{duration:0.8});
+  // Clear command filter when switching location
+  window._selectedCmd=null;
+  // Rebuild command selector for new location
+  _buildCmdSelector();
+  // Re-render all location-filtered views
+  renderContracts();renderCompanies();renderSignals();renderBrief();
+  rebuildLayers();
+  updateLocationStats();
+  _updateAOI();
+}
+
+function onCmdSelectChange(cmdId){
+  window._selectedCmd=cmdId||null;
+  // Re-render tables
+  renderContracts();renderCompanies();renderSignals();
+  // Pan map to command if selected
+  if(cmdId&&window.leafletMap){
+    const cmd=LU.cmd[cmdId];
+    if(cmd&&cmd._ll)window.leafletMap.flyTo(cmd._ll,13,{duration:0.5});
+  }
+  _updateAOI();
+}
+
+function rebuildLayers(){
+  // Rebuild active map layers for new location
+  Object.keys(layerGroups).forEach(k=>{
+    const el=document.querySelector('.lt.on[data-layer="'+k+'"]');
+    if(el){
+      const fn=layerBuilders[k];
+      if(fn)fn();
+    }
+  });
+}
+// ── End location/command selector ────────────────────────────────────────
 
 </script>
 </body>
