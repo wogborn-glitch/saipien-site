@@ -899,11 +899,12 @@ function Augur() {
               ? (keyStatus?.mentor === "missing" ? "#ff4444" : "#ff0066")
               : (backendStatus === "offline" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.4)"),
             boxShadow: backendStatus === "live"
-              ? (keyStatus?.mentor === "missing" ? "0 0 6px #ff4444" : "0 0 4px #ff0066")
+              ? (keyStatus?.mentor === "missing" ? "0 0 6px #ff4444" : "0 0 6px #ff0066")
               : "none",
-            animation: backendStatus === "live" ? "pulse 2s ease infinite"
-              : backendStatus === "waking" ? "pulse 1.5s ease infinite"
-              : backendStatus === "checking" ? "pulse 2.5s ease infinite"
+            animation: backendStatus !== "live"
+              ? (backendStatus === "waking" ? "pulse 1.5s ease infinite"
+                : backendStatus === "checking" ? "pulse 2.5s ease infinite"
+                : "none")
               : "none",
           }} />
           <span className="label" style={{
