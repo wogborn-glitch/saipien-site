@@ -893,36 +893,53 @@ function Augur() {
       {/* BOTTOM */}
       <div style={{ padding: "5px 24px", borderTop: "1px solid rgba(255,0,102,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
         <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          <div style={{ width: 4, height: 4, background: "#ff0066", boxShadow: "0 0 4px #ff0066", animation: "pulse 2s ease infinite" }} />
-          <span className="label" style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>CASCADE ENGINE ONLINE</span>
+          <div style={{
+            width: 4, height: 4,
+            background: backendStatus === "live"
+              ? (keyStatus?.mentor === "missing" ? "#ff4444" : "#ff0066")
+              : (backendStatus === "offline" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.4)"),
+            boxShadow: backendStatus === "live"
+              ? (keyStatus?.mentor === "missing" ? "0 0 6px #ff4444" : "0 0 4px #ff0066")
+              : "none",
+            animation: backendStatus === "live" ? "pulse 2s ease infinite"
+              : backendStatus === "waking" ? "pulse 1.5s ease infinite"
+              : backendStatus === "checking" ? "pulse 2.5s ease infinite"
+              : "none",
+          }} />
+          <span className="label" style={{
+            fontSize: 9,
+            color: backendStatus === "live"
+              ? (keyStatus?.mentor === "missing" ? "#ff4444" : "rgba(255,255,255,0.4)")
+              : (backendStatus === "waking" ? "#ff0066" : "rgba(255,255,255,0.4)"),
+            animation: backendStatus === "waking" ? "pulse 1.5s ease infinite" : "none",
+          }}>
+            {backendStatus === "offline" ? "CASCADE ENGINE OFFLINE"
+              : backendStatus === "checking" ? "CASCADE ENGINE CHECKING"
+              : backendStatus === "waking" ? "CASCADE ENGINE WAKING"
+              : keyStatus?.mentor === "missing" ? "CASCADE ENGINE // MENTOR KEY MISSING"
+              : "CASCADE ENGINE ONLINE"}
+          </span>
           <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>|</span>
           <span className="label" style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>BAYESIAN PROPAGATION</span>
-          {llmSource && (
+          {(llmSource || (backendStatus === "live" && keyStatus)) && (
             <>
               <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>|</span>
               <span className="label" style={{
                 fontSize: 9,
-                color: llmSource === "local" ? "rgba(255,255,255,0.4)" : "#ff0066",
-                textShadow: llmSource !== "local" ? "0 0 4px rgba(255,0,102,0.3)" : "none",
+                color: (llmSource === "local" || (!llmSource && keyStatus?.mentor === "missing"))
+                  ? (keyStatus?.mentor === "missing" ? "#ff4444" : "rgba(255,255,255,0.4)")
+                  : "#ff0066",
+                textShadow: (llmSource && llmSource !== "local") ? "0 0 4px rgba(255,0,102,0.3)" : "none",
               }}>
-                {llmSource === "shadow-mentor" ? "MENTOR // SHADOW" : llmSource === "protege" ? "PROTEGE // INDEPENDENT" : llmSource === "mentor" ? "MENTOR // DIRECT" : llmSource === "mentor-fallback" ? "MENTOR // FALLBACK" : "LOCAL // OFFLINE"}
+                {llmSource
+                  ? (llmSource === "shadow-mentor" ? "MENTOR // SHADOW" : llmSource === "protege" ? "PROTEGE // INDEPENDENT" : llmSource === "mentor" ? "MENTOR // DIRECT" : llmSource === "mentor-fallback" ? "MENTOR // FALLBACK" : "LOCAL // OFFLINE")
+                  : (keyStatus?.mentor === "missing" && keyStatus?.protege === "missing" ? "NO API KEYS"
+                    : keyStatus?.mentor === "missing" ? "MENTOR KEY MISSING"
+                    : keyStatus?.protege === "missing" ? "PROTEGE KEY MISSING"
+                    : "READY")
+                }
               </span>
             </>
-          )}
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>|</span>
-          {backendStatus !== "live" ? (
-            <span className="label" style={{ fontSize: 9, color: backendStatus === "offline" ? "rgba(255,255,255,0.4)" : backendStatus === "waking" ? "#ff0066" : "rgba(255,255,255,0.5)", animation: backendStatus === "waking" ? "pulse 1.5s ease infinite" : backendStatus === "checking" ? "pulse 2s ease infinite" : "none" }}>
-              {backendStatus === "offline" ? "○ BACKEND OFFLINE" : backendStatus === "checking" ? "◌ CHECKING..." : "◐ WAKING..."}
-            </span>
-          ) : (
-            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span className="label" style={{ fontSize: 9, color: keyStatus?.mentor === "set" ? "#00ff66" : "#ff4444", textShadow: keyStatus?.mentor === "set" ? "0 0 4px rgba(0,255,100,0.3)" : "0 0 4px rgba(255,0,0,0.3)" }}>
-                MENTOR {keyStatus?.mentor === "set" ? "●" : "✕"}
-              </span>
-              <span className="label" style={{ fontSize: 9, color: keyStatus?.protege === "set" ? "#00ff66" : "#ff4444", textShadow: keyStatus?.protege === "set" ? "0 0 4px rgba(0,255,100,0.3)" : "0 0 4px rgba(255,0,0,0.3)" }}>
-                PROTEGE {keyStatus?.protege === "set" ? "●" : "✕"}
-              </span>
-            </span>
           )}
         </div>
         <span className="vt" style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", letterSpacing: "3px" }}>SAIPIEN.NET</span>
