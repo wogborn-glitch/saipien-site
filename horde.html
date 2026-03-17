@@ -318,7 +318,7 @@
         <h2 class="panel-title">Bridge Console</h2>
         <div class="field-grid">
           <div>
-            <label for="hordeUrl">HORDE Base URL</label>
+            <label for="hordeUrl">Augur / HORDE Base URL</label>
             <input id="hordeUrl" />
           </div>
           <div>
@@ -417,9 +417,11 @@
     function resolveDefaultUrls() {
       const host = window.location.hostname;
       const isProductionHost = /(^|\.)saipien\.net$/i.test(host);
+      // HORDE is now integrated into Augur — both point to same service
+      const augurBase = isProductionHost ? "https://augur.saipien.net" : "http://127.0.0.1:8000";
       return {
-        horde: isProductionHost ? "https://horde-xde2.onrender.com" : "http://127.0.0.1:5031",
-        augur: isProductionHost ? "https://augur.saipien.net" : "http://127.0.0.1:8000",
+        horde: augurBase,  // HORDE endpoints live at /augur/horde/*
+        augur: augurBase,
       };
     }
 
@@ -492,7 +494,7 @@
         payload.scenario_branches = roundConfig.scenario_branches;
 
         const hordeBase = hordeUrlEl.value.replace(/\/$/, "");
-        const response = await fetch(`${hordeBase}/horde/simulate`, {
+        const response = await fetch(`${hordeBase}/augur/horde/simulate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -531,6 +533,7 @@
             confidence: topScenario.confidence,
             explanation: topScenario.summary,
             augur_shocks: topScenario.augur_shocks,
+            lagging_shocks: topScenario.lagging_shocks || latestRun.lagging_shocks || null,
             metadata: {
               source_system: "HORDE",
               probability: topScenario.probability,
