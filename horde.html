@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>HORDE | Saipien</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --bg: #090b08;
+      --panel: rgba(255, 170, 0, 0.07);
+      --panel-strong: rgba(255, 170, 0, 0.11);
+      --border: rgba(255, 170, 0, 0.22);
+      --accent: #ffaa00;
+      --accent-soft: rgba(255, 170, 0, 0.15);
+      --cyan: #00f0ff;
+      --magenta: #ff33aa;
+      --green: #00ff88;
+      --red: #ff4d6d;
+      --text: #eef2e8;
+      --muted: rgba(255, 255, 255, 0.62);
+      --mono: "JetBrains Mono", monospace;
+      --sans: "Space Grotesk", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(255, 170, 0, 0.14), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(0, 240, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, #0a0d08 0%, #070907 100%);
+    }
+
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-end;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: rgba(255, 170, 0, 0.72);
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 8vw, 88px);
+      line-height: 0.94;
+      letter-spacing: -0.04em;
+    }
+
+    .subhead {
+      max-width: 640px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .stack-note {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.75);
+      min-width: 270px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel-strong), rgba(255, 170, 0, 0.04));
+      backdrop-filter: blur(10px);
+      padding: 18px;
+    }
+
+    .panel-title {
+      margin: 0 0 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255, 170, 0, 0.76);
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: rgba(255, 255, 255, 0.72);
+      margin-bottom: 8px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid rgba(255, 170, 0, 0.24);
+      background: rgba(5, 8, 5, 0.7);
+      color: var(--text);
+      padding: 12px 13px;
+      font: 14px/1.45 var(--mono);
+      outline: none;
+    }
+
+    textarea {
+      min-height: 420px;
+      resize: vertical;
+    }
+
+    input:focus, textarea:focus {
+      border-color: rgba(255, 170, 0, 0.58);
+      box-shadow: 0 0 0 1px rgba(255, 170, 0, 0.2);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid rgba(255, 170, 0, 0.32);
+      background: transparent;
+      color: var(--text);
+      padding: 12px 16px;
+      cursor: pointer;
+      font: 12px var(--mono);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      transition: 140ms ease;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #090b08;
+      border-color: var(--accent);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px rgba(255, 170, 0, 0.12);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status {
+      margin-top: 14px;
+      min-height: 22px;
+      font: 12px/1.6 var(--mono);
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .status.error { color: #ff86a3; }
+    .status.success { color: #7ff0b5; }
+
+    .result-block + .result-block {
+      margin-top: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 170, 0, 0.18);
+      background: rgba(255, 170, 0, 0.08);
+      font: 11px var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.75);
+      margin: 0 8px 8px 0;
+    }
+
+    .scenario {
+      border: 1px solid rgba(255, 170, 0, 0.18);
+      background: rgba(255, 170, 0, 0.06);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .scenario-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .scenario h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    .metric {
+      font: 12px var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .scenario p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .shock-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .shock {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      font: 12px var(--mono);
+    }
+
+    .shock strong {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    .shock.magenta strong {
+      color: var(--magenta);
+    }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      max-height: 280px;
+      padding: 12px;
+      background: rgba(6, 8, 7, 0.68);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.82);
+      font: 12px/1.55 var(--mono);
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 960px) {
+      .grid { grid-template-columns: 1fr; }
+      .field-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="header">
+      <div>
+        <div class="eyebrow">Saipien Hidden Surface</div>
+        <h1>HORDE</h1>
+        <p class="subhead">
+          Heuristic Opinion Resonance Dynamic Engine. Paste a raw ANOMALY scan payload,
+          run HORDE against it, then forward the top scenario into Augur's structured ingest route.
+        </p>
+      </div>
+      <div class="stack-note">
+        ANOMALY -> observe<br />
+        HORDE -> emerge<br />
+        AUGUR -> cascade
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2 class="panel-title">Bridge Console</h2>
+        <div class="field-grid">
+          <div>
+            <label for="hordeUrl">HORDE Base URL</label>
+            <input id="hordeUrl" />
+          </div>
+          <div>
+            <label for="augurUrl">Augur Base URL</label>
+            <input id="augurUrl" />
+          </div>
+          <div>
+            <label for="topic">Topic Override</label>
+            <input id="topic" value="rubio iran pressure" />
+          </div>
+          <div>
+            <label for="rounds">Rounds / Branches</label>
+            <input id="rounds" value="24 / 3" />
+          </div>
+        </div>
+
+        <label for="payload">ANOMALY Scan JSON Or Direct HORDE Seed</label>
+        <textarea id="payload"></textarea>
+
+        <div class="actions">
+          <button class="primary" id="runBtn">Run HORDE</button>
+          <button id="pushBtn" disabled>Push Top Scenario To Augur</button>
+          <button id="loadSampleBtn">Reload Sample</button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <p class="footer-note">
+          This page is intentionally unlinked and marked <code>noindex</code>.
+          Deploy it as a hidden Saipien operations surface, not a public nav item.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Results</h2>
+        <div class="result-block">
+          <div id="summaryPills"></div>
+        </div>
+        <div class="result-block" id="scenarioContainer"></div>
+        <div class="result-block">
+          <h2 class="panel-title">Raw Response</h2>
+          <pre id="rawResponse">Run HORDE to see scenario output.</pre>
+        </div>
+        <div class="result-block">
+          <h2 class="panel-title">Augur Push Response</h2>
+          <pre id="pushResponse">Push the top scenario to Augur after a successful run.</pre>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const samplePayload = {
+      topic: "rubio iran pressure",
+      graph: {
+        nodes: [
+          { id: "marco_rubio", label: "Marco Rubio", type: "person", cluster: "US Government", sentiment: -0.12, importance: 0.91, anomaly_score: 0.83, source_count: 12, betweenness: 0.31, pagerank: 0.18 },
+          { id: "iran", label: "Iran", type: "country", cluster: "Regional Tension", sentiment: -0.41, importance: 0.88, anomaly_score: 0.79, source_count: 18, betweenness: 0.22, pagerank: 0.21 },
+          { id: "us_defense", label: "US Defense", type: "organization", cluster: "US Government", sentiment: -0.08, importance: 0.67, anomaly_score: 0.51, source_count: 8, betweenness: 0.15, pagerank: 0.10 },
+          { id: "oil_shipping", label: "Oil Shipping", type: "topic", cluster: "Energy", sentiment: -0.22, importance: 0.59, anomaly_score: 0.62, source_count: 9, betweenness: 0.19, pagerank: 0.11 }
+        ],
+        links: [
+          { source: "marco_rubio", target: "iran", strength: 0.82, relationship: "threat" },
+          { source: "iran", target: "oil_shipping", strength: 0.74, relationship: "threat" },
+          { source: "marco_rubio", target: "us_defense", strength: 0.68, relationship: "support" },
+          { source: "us_defense", target: "oil_shipping", strength: 0.41, relationship: "co-mentioned" }
+        ]
+      },
+      anomalies: [
+        {
+          id: "rubio_spike",
+          type: "volume_spike",
+          severity: "high",
+          title: "Rubio rhetoric spikes around Iran",
+          description: "A sudden concentration of hostile language is clustering around Rubio and Iran coverage.",
+          related_nodes: ["marco_rubio", "iran"],
+          confidence: 0.81,
+          behavioral_note: "Opinion leaders are pulling the discourse toward escalation."
+        }
+      ],
+      simulation_rounds: 24,
+      scenario_branches: 3
+    };
+
+    const hordeUrlEl = document.getElementById("hordeUrl");
+    const augurUrlEl = document.getElementById("augurUrl");
+    const payloadEl = document.getElementById("payload");
+    const statusEl = document.getElementById("status");
+    const rawResponseEl = document.getElementById("rawResponse");
+    const pushResponseEl = document.getElementById("pushResponse");
+    const summaryPillsEl = document.getElementById("summaryPills");
+    const scenarioContainerEl = document.getElementById("scenarioContainer");
+    const pushBtn = document.getElementById("pushBtn");
+
+    let latestRun = null;
+
+    function resolveDefaultUrls() {
+      const host = window.location.hostname;
+      const isProductionHost = /(^|\.)saipien\.net$/i.test(host);
+      return {
+        horde: isProductionHost ? "https://horde.saipien.net" : "http://127.0.0.1:5031",
+        augur: isProductionHost ? "https://augur.saipien.net" : "http://127.0.0.1:8000",
+      };
+    }
+
+    function setStatus(message, kind = "") {
+      statusEl.textContent = message;
+      statusEl.className = `status ${kind}`.trim();
+    }
+
+    function loadSample() {
+      payloadEl.value = JSON.stringify(samplePayload, null, 2);
+      rawResponseEl.textContent = "Run HORDE to see scenario output.";
+      pushResponseEl.textContent = "Push the top scenario to Augur after a successful run.";
+      summaryPillsEl.innerHTML = "";
+      scenarioContainerEl.innerHTML = "";
+      latestRun = null;
+      pushBtn.disabled = true;
+      setStatus("Sample payload loaded.");
+    }
+
+    function readRounds() {
+      const text = document.getElementById("rounds").value || "";
+      const parts = text.split("/").map(part => part.trim());
+      return {
+        simulation_rounds: Number(parts[0] || 24),
+        scenario_branches: Number(parts[1] || 3),
+      };
+    }
+
+    function renderRun(data) {
+      const pills = [
+        `TOPIC ${data.topic || "N/A"}`,
+        `${data.node_count || 0} NODES`,
+        `${data.edge_count || 0} EDGES`,
+        `${data.scenario_branches || 0} SCENARIOS`,
+      ];
+      summaryPillsEl.innerHTML = pills.map(text => `<span class="pill">${text}</span>`).join("");
+
+      scenarioContainerEl.innerHTML = (data.scenarios || []).map((scenario, index) => `
+        <article class="scenario">
+          <div class="scenario-head">
+            <div>
+              <div class="metric">Scenario ${index + 1}</div>
+              <h3>${scenario.label}</h3>
+            </div>
+            <div class="metric">
+              ${(scenario.probability * 100).toFixed(1)}% | ${(scenario.confidence * 100).toFixed(1)}% confidence
+            </div>
+          </div>
+          <p>${scenario.summary || ""}</p>
+          <div class="metric">Key Drivers: ${(scenario.key_drivers || []).join(", ") || "None"}</div>
+          <div class="shock-list">
+            ${(scenario.augur_shocks || []).map((shock, shockIndex) => `
+              <div class="shock ${shockIndex === 0 ? "magenta" : ""}">
+                <span><strong>${shock.node_id}</strong> ${shock.reasoning || ""}</span>
+                <span>${shock.magnitude > 0 ? "+" : ""}${Number(shock.magnitude).toFixed(3)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </article>
+      `).join("");
+    }
+
+    async function runHorde() {
+      try {
+        setStatus("Running HORDE simulation...");
+        const payload = JSON.parse(payloadEl.value);
+        const roundConfig = readRounds();
+        payload.topic = document.getElementById("topic").value.trim() || payload.topic;
+        payload.simulation_rounds = roundConfig.simulation_rounds;
+        payload.scenario_branches = roundConfig.scenario_branches;
+
+        const hordeBase = hordeUrlEl.value.replace(/\/$/, "");
+        const response = await fetch(`${hordeBase}/horde/simulate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await response.json();
+        rawResponseEl.textContent = JSON.stringify(json, null, 2);
+        if (!response.ok || !json.success) {
+          throw new Error(json.error || "HORDE simulation failed");
+        }
+
+        latestRun = json.data;
+        renderRun(json.data);
+        pushBtn.disabled = !(latestRun.scenarios && latestRun.scenarios.length);
+        setStatus(`HORDE run ${latestRun.run_id} completed.`, "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    }
+
+    async function pushToAugur() {
+      if (!latestRun || !latestRun.scenarios || !latestRun.scenarios.length) {
+        return;
+      }
+      try {
+        setStatus("Pushing top scenario to Augur...");
+        const topScenario = latestRun.scenarios[0];
+        const augurBase = augurUrlEl.value.replace(/\/$/, "");
+        const response = await fetch(`${augurBase}/augur/parse/structured`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            topic: latestRun.topic,
+            scenario_id: topScenario.id,
+            scenario_label: topScenario.label,
+            scenario_type: topScenario.scenario_type,
+            confidence: topScenario.confidence,
+            explanation: topScenario.summary,
+            augur_shocks: topScenario.augur_shocks,
+            metadata: {
+              source_system: "HORDE",
+              probability: topScenario.probability,
+              key_drivers: topScenario.key_drivers,
+              horde_run_id: latestRun.run_id,
+            }
+          }),
+        });
+        const json = await response.json();
+        pushResponseEl.textContent = JSON.stringify(json, null, 2);
+        if (!response.ok) {
+          throw new Error(json.detail || json.error || "Augur structured ingest failed");
+        }
+        setStatus(`Pushed ${topScenario.id} into Augur.`, "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    }
+
+    document.getElementById("runBtn").addEventListener("click", runHorde);
+    document.getElementById("pushBtn").addEventListener("click", pushToAugur);
+    document.getElementById("loadSampleBtn").addEventListener("click", loadSample);
+
+    const defaults = resolveDefaultUrls();
+    hordeUrlEl.value = defaults.horde;
+    augurUrlEl.value = defaults.augur;
+    loadSample();
+  </script>
+</body>
+</html>
